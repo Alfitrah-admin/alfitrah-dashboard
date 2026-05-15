@@ -1,0 +1,127 @@
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getDB, initDB, Teacher, ReportingCycle, Subject } from '@/lib/store';
+
+export default function NewEvaluationPage() {
+  const router = useRouter();
+  const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [cycles, setCycles] = useState<ReportingCycle[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  
+  const [selectedCycle, setSelectedCycle] = useState("");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+
+  useEffect(() => {
+    initDB();
+    const db = getDB();
+    const teacherId = localStorage.getItem('teacher_logged_in_id');
+    if (teacherId) {
+      const loggedInTeacher = (db.teachers || []).find(t => t.id === teacherId);
+      if (loggedInTeacher) {
+        setTeacher(loggedInTeacher);
+        setCycles(db.reportingCycles || []);
+        setSubjects(db.subjects || []);
+        
+        // Auto-select first cycle if available
+        const activeCycle = db.reportingCycles?.find(c => c.status === 'Active');
+        if (activeCycle) setSelectedCycle(activeCycle.name);
+      } else {
+        router.push('/teacher/login');
+      }
+    } else {
+      router.push('/teacher/login');
+    }
+  }, [router]);
+
+  const handleContinue = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCycle || !selectedClass || !selectedSubject) return;
+    router.push(`/teacher/evaluations/evaluate?class=${encodeURIComponent(selectedClass)}&subject=${encodeURIComponent(selectedSubject)}&cycle=${encodeURIComponent(selectedCycle)}`);
+  };
+
+  if (!teacher) return <div className="p-8">Loading...</div>;
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 mt-8">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-800">New Evaluation Setup</h2>
+        <p className="text-slate-500 text-sm mt-1">Select the parameters to begin evaluating your students.</p>
+      </div>
+
+      <div className="glass-card p-6">
+        <form onSubmit={handleContinue} className="space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Reporting Cycle</label>
+            <select 
+              value={selectedCycle}
+              onChange={e => setSelectedCycle(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald transition-all bg-white"
+              required
+            >
+              <option value="" disabled>Select a cycle...</option>
+              {cycles.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Class / Grade</label>
+            <select 
+              value={selectedClass}
+              onChange={e => setSelectedClass(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald transition-all bg-white"
+              required
+            >
+              <option value="" disabled>Select a class...</option>
+              {teacher.gradesAssigned?.map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+            {(!teacher.gradesAssigned || teacher.gradesAssigned.length === 0) && (
+              <p className="text-xs text-red-500 mt-1">You have no assigned classes.</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Subject</label>
+            <select 
+              value={selectedSubject}
+              onChange={e => setSelectedSubject(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald transition-all bg-white"
+              required
+            >
+              <option value="" disabled>Select a subject...</option>
+              {teacher.subjectsAssigned?.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {(!teacher.subjectsAssigned || teacher.subjectsAssigned.length === 0) && (
+              <p className="text-xs text-red-500 mt-1">You have no assigned subjects.</p>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex justify-end space-x-3">
+            <button 
+              type="button" 
+              onClick={() => router.push('/teacher/evaluations')}
+              className="px-6 py-3 text-slate-600 font-medium hover:bg-slate-50 rounded-xl transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              disabled={!selectedCycle || !selectedClass || !selectedSubject}
+              className="bg-brand-emerald text-white px-8 py-3 rounded-xl font-bold shadow-sm hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start Evaluating
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
