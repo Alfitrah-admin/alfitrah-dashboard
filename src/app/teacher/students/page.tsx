@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getDB, initDB, Student, Teacher, Evaluation } from '@/lib/store';
+import { Student, Teacher, Evaluation } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -11,22 +12,45 @@ export default function StudentsPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    const teacherId = localStorage.getItem('teacher_logged_in_id');
-    if (teacherId) {
-      const loggedInTeacher = (db.teachers || []).find(t => t.id === teacherId);
-      if (loggedInTeacher) {
+    const fetchData = async () => {
+      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      
+      let loggedInTeacher = null;
+      if (teacherData && teacherData.length > 0) {
+        loggedInTeacher = {
+          ...teacherData[0],
+          subjectsAssigned: teacherData[0].subjects_assigned || [],
+          gradesAssigned: teacherData[0].grades_assigned || [],
+        } as Teacher;
         setTeacher(loggedInTeacher);
-        
-        // Filter students to only those in the teacher's assigned grades
-        const teacherStudents = (db.students || []).filter(s => 
-          loggedInTeacher.gradesAssigned?.includes(s.grade)
-        );
-        setStudents(teacherStudents);
-        setEvaluations(db.evaluations || []);
       }
-    }
+
+      if (loggedInTeacher) {
+        const { data: studentsData } = await supabase.from('students').select('*');
+        if (studentsData) {
+          const teacherStudents = studentsData
+            .map(s => ({
+              ...s,
+              admissionId: s.admission_id,
+            }))
+            .filter(s => loggedInTeacher.gradesAssigned.includes(s.grade));
+          setStudents(teacherStudents as any[]);
+        }
+
+        const { data: evalsData } = await supabase.from('evaluations').select('*');
+        if (evalsData) {
+          setEvaluations(evalsData.map(e => ({
+            ...e,
+            studentId: e.student_id,
+            subject: e.subject,
+            status: e.status,
+            date: e.date,
+            grades: e.grades,
+          })) as any[]);
+        }
+      }
+    };
+    fetchData();
   }, []);
 
   const getRecentGrade = (studentId: string) => {

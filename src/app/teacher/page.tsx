@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getDB, initDB, getSubjectsForGrade } from '@/lib/store';
+import { getSubjectsForGrade } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function TeacherDashboard() {
   const [classes, setClasses] = useState<any[]>([]);
@@ -11,24 +12,55 @@ export default function TeacherDashboard() {
   const [teacher, setTeacher] = useState<any>(null);
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    setEvaluations(db.evaluations || []);
-    setStudents(db.students || []);
-
-    const teacherId = localStorage.getItem('teacher_logged_in_id');
-    if (teacherId) {
-      const loggedInTeacher = (db.teachers || []).find(t => t.id === teacherId);
-      if (loggedInTeacher) {
+    const fetchData = async () => {
+      // Get teacher
+      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      
+      let loggedInTeacher = null;
+      if (teacherData && teacherData.length > 0) {
+        loggedInTeacher = {
+          ...teacherData[0],
+          subjectsAssigned: teacherData[0].subjects_assigned || [],
+          gradesAssigned: teacherData[0].grades_assigned || [],
+        };
         setTeacher(loggedInTeacher);
-        
-        // Only show classes assigned to this teacher
-        const assignedClasses = (db.classes || []).filter(c => 
-          loggedInTeacher.gradesAssigned?.includes(c.name)
-        );
-        setClasses(assignedClasses);
       }
-    }
+      
+      // Get classes (from DB or mock if no classes table)
+      // Usually classes is just a distinct list of grades from students or a separate table
+      const { data: studentsData } = await supabase.from('students').select('*');
+      if (studentsData) {
+        const studentList = studentsData.map(s => ({
+          ...s,
+          admissionId: s.admission_id,
+          parentPhone: s.parent_phone,
+          parentName: s.parent_name,
+        }));
+        setStudents(studentList);
+        
+        // Mock classes based on assigned grades
+        if (loggedInTeacher && loggedInTeacher.gradesAssigned) {
+          const assignedClasses = loggedInTeacher.gradesAssigned.map((grade: string, idx: number) => ({
+            id: `c${idx}`,
+            name: grade,
+            studentsCount: studentList.filter(s => s.grade === grade).length
+          }));
+          setClasses(assignedClasses);
+        }
+      }
+
+      const { data: evalsData } = await supabase.from('evaluations').select('*');
+      if (evalsData) {
+        setEvaluations(evalsData.map(e => ({
+          ...e,
+          studentId: e.student_id,
+          studentName: e.student_name,
+          reportingCycle: e.reporting_cycle,
+        })));
+      }
+    };
+    
+    fetchData();
   }, []);
 
   const getProgress = (className: string) => {

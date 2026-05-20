@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getDB, initDB, setDB, Student } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
+import { Student } from '@/lib/store';
 
 export default function StudentsAdmin() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -10,10 +11,22 @@ export default function StudentsAdmin() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [formData, setFormData] = useState<Partial<Student>>({});
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false });
+    if (data) {
+      // Map db fields to our local type if needed, but assuming they match for now
+      setStudents(data as Student[]);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    setStudents(db.students);
+    fetchStudents();
   }, []);
 
   const openModal = (student: Student | null = null) => {
@@ -37,30 +50,61 @@ export default function StudentsAdmin() {
     setFormData({});
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name) return alert("Full Name is required");
     if (!formData.admissionId) return alert("Admission ID is required");
     if (!formData.parentPhone) return alert("Parent Phone Number is required");
-    if (!formData.parentPassword) return alert("Parent Password is required");
     
-    const db = getDB();
+    setSaving(true);
+    
+    // Format for DB
+    const studentData = {
+      admission_id: formData.admissionId,
+      name: formData.name,
+      grade: formData.grade,
+      parent_name: formData.parentName,
+      parent_phone: formData.parentPhone,
+      status: formData.status
+    };
+
+    let error;
+
     if (editingStudent) {
-      const idx = db.students.findIndex(s => s.id === editingStudent.id);
-      if (idx >= 0) db.students[idx] = formData as Student;
+      const { error: updateError } = await supabase
+        .from('students')
+        .update(studentData)
+        .eq('id', editingStudent.id);
+      error = updateError;
     } else {
-      db.students.push(formData as Student);
+      const { error: insertError } = await supabase
+        .from('students')
+        .insert([studentData]);
+      error = insertError;
     }
-    setDB(db);
-    setStudents(db.students);
-    closeModal();
+
+    setSaving(false);
+
+    if (error) {
+      setActionMessage({ type: 'error', text: error.message || 'Failed to save student' });
+    } else {
+      setActionMessage({ type: 'success', text: `Student ${editingStudent ? 'updated' : 'added'} successfully` });
+      fetchStudents();
+      closeModal();
+      
+      setTimeout(() => setActionMessage({ type: '', text: '' }), 3000);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this student?")) {
-      const db = getDB();
-      db.students = db.students.filter(s => s.id !== id);
-      setDB(db);
-      setStudents(db.students);
+      const { error } = await supabase.from('students').delete().eq('id', id);
+      if (error) {
+        setActionMessage({ type: 'error', text: 'Failed to delete student' });
+      } else {
+        setActionMessage({ type: 'success', text: 'Student deleted successfully' });
+        fetchStudents();
+        setTimeout(() => setActionMessage({ type: '', text: '' }), 3000);
+      }
     }
   };
 
@@ -83,6 +127,12 @@ export default function StudentsAdmin() {
         </button>
       </div>
 
+      {actionMessage.text && (
+        <div className={`p-4 rounded-xl border ${actionMessage.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+          {actionMessage.text}
+        </div>
+      )}
+
       <div className="glass-card overflow-hidden">
         <table className="w-full text-sm text-left">
           <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-100">
@@ -95,9 +145,27 @@ export default function StudentsAdmin() {
             </tr>
           </thead>
           <tbody>
-            {students.map(s => (
+            {loading ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                  <div className="flex justify-center items-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading students...
+                  </div>
+                </td>
+              </tr>
+            ) : students.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                  No students found. Click "Add Student" to create one.
+                </td>
+              </tr>
+            ) : students.map(s => (
               <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 text-slate-500">{s.admissionId}</td>
+                <td className="px-6 py-4 text-slate-500">{s.admissionId || (s as any).admission_id}</td>
                 <td className="px-6 py-4 font-medium text-slate-800">{s.name}</td>
                 <td className="px-6 py-4 text-slate-600">{s.grade}</td>
                 <td className="px-6 py-4">
@@ -106,7 +174,12 @@ export default function StudentsAdmin() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right space-x-3">
-                  <button onClick={() => openModal(s)} className="text-primary hover:text-indigo-700 font-medium transition-colors">Edit</button>
+                  <button onClick={() => openModal({
+                    ...s,
+                    admissionId: (s as any).admission_id,
+                    parentName: (s as any).parent_name,
+                    parentPhone: (s as any).parent_phone
+                  })} className="text-primary hover:text-indigo-700 font-medium transition-colors">Edit</button>
                   <button onClick={() => handleDelete(s.id)} className="text-red-500 hover:text-red-700 font-medium transition-colors">Delete</button>
                 </td>
               </tr>
@@ -205,7 +278,10 @@ export default function StudentsAdmin() {
 
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3">
               <button onClick={closeModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">Cancel</button>
-              <button onClick={handleSave} className="bg-brand-emerald hover:bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors">Save Student</button>
+              <button disabled={saving} onClick={handleSave} className="bg-brand-emerald hover:bg-emerald-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center disabled:opacity-70">
+                {saving && <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                {saving ? 'Saving...' : 'Save Student'}
+              </button>
             </div>
           </div>
         </div>

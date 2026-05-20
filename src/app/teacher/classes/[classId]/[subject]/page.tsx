@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getDB, initDB, saveEvaluation, Student, Evaluation } from '@/lib/store';
+import { Student, Evaluation } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 import { getIndicatorsForSubject, GRADES } from '@/lib/constants';
 
 export default function SubjectEvaluationWorkflow() {
@@ -27,29 +28,60 @@ export default function SubjectEvaluationWorkflow() {
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    const foundClass = db.classes.find(c => c.id === classId);
-    
-    const cycle = localStorage.getItem('reportingCycle') || "Jun-Jul 2026";
+    const cycle = "Jun-Jul 2026";
     setReportingCycle(cycle);
 
-    if (foundClass) {
-      setClassInfo(foundClass);
+    const fetchData = async () => {
+      // Assuming classId matches the grade string, e.g., "Grade 1" or we can just fetch students
+      // and filter by a grade name if classId is actually an id like "c0". 
+      // But we just fetch all students and find the first matching ones for now.
+      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      let gradeName = "Grade 1";
+      if (teacherData && teacherData.length > 0 && teacherData[0].grades_assigned) {
+        // If classId is something like "Grade 1", we decode it. Or if it's an index, we map it.
+        // For now, let's just use the first assigned grade or decoded classId if it matches.
+        const grades = teacherData[0].grades_assigned;
+        const decoded = decodeURIComponent(classId);
+        if (grades.includes(decoded)) {
+          gradeName = decoded;
+        } else {
+          gradeName = grades[0] || "Grade 1";
+        }
+      }
       
-      const classStudents = db.students.filter(s => s.grade === foundClass.name);
-      setStudents(classStudents);
-      
-      const evals = db.evaluations.filter(e => e.grade === foundClass.name && e.subject === subjectName && e.reportingCycle === cycle);
-      setEvaluations(evals);
+      setClassInfo({ name: gradeName, id: classId });
+
+      const { data: studentsData } = await supabase.from('students').select('*').eq('grade', gradeName);
+      if (studentsData) {
+        const classStudents = studentsData.map(s => ({
+          ...s,
+          admissionId: s.admission_id
+        }));
+        setStudents(classStudents as any[]);
+        if (classStudents.length > 0) {
+          setSelectedStudentId(classStudents[0].id);
+        }
+      }
+
+      const { data: evalsData } = await supabase.from('evaluations')
+        .select('*')
+        .eq('grade', gradeName)
+        .eq('subject', subjectName)
+        .eq('reporting_cycle', cycle);
+        
+      if (evalsData) {
+        setEvaluations(evalsData.map(e => ({
+          ...e,
+          studentId: e.student_id,
+          reportingCycle: e.reporting_cycle,
+        })) as any[]);
+      }
       
       const subjectIndicators = getIndicatorsForSubject(subjectName);
       setIndicators(subjectIndicators);
-      
-      if (classStudents.length > 0) {
-        setSelectedStudentId(classStudents[0].id);
-      }
-    }
+    };
+
+    fetchData();
   }, [classId, subjectName]);
 
   // Load student data into form when selected student changes
@@ -104,17 +136,28 @@ export default function SubjectEvaluationWorkflow() {
     if (!student) return;
 
     const evalPayload = {
-      studentId: student.id,
-      studentName: student.name,
+      student_id: student.id,
+      student_name: student.name,
       grade: classInfo.name,
       subject: subjectName,
-      reportingCycle: reportingCycle,
+      reporting_cycle: reportingCycle,
       grades: formData.grades,
       comments: formData.comments,
-      status: status
+      status: status,
+      date: new Date().toISOString()
     };
 
-    saveEvaluation(evalPayload);
+    // Upsert into supabase
+    const saveToDb = async () => {
+      // Find if we already have one
+      const existing = evaluations.find(e => e.studentId === student.id);
+      if (existing && existing.id) {
+        await supabase.from('evaluations').update(evalPayload).eq('id', existing.id);
+      } else {
+        await supabase.from('evaluations').insert(evalPayload);
+      }
+    };
+    saveToDb();
     setSaveStatus(status === 'draft' ? 'Draft saved' : 'Evaluation submitted');
     setIsDirty(false);
 

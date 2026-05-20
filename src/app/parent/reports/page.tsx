@@ -1,19 +1,32 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getDB, initDB, Evaluation } from '@/lib/store';
+import { Evaluation } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function ParentReportsPage() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    const studentId = localStorage.getItem('parent_logged_in_student_id');
-    if (studentId) {
-      const childEvals = db.evaluations.filter(ev => ev.studentId === studentId && ev.status === 'submitted');
-      setEvaluations(childEvals);
-    }
+    const fetchData = async () => {
+      const { data: studentsData } = await supabase.from('students').select('id').limit(1);
+      if (studentsData && studentsData.length > 0) {
+        const studentId = studentsData[0].id;
+        const { data: evalsData } = await supabase.from('evaluations')
+          .select('*')
+          .eq('student_id', studentId)
+          .eq('status', 'submitted');
+          
+        if (evalsData) {
+          setEvaluations(evalsData.map(e => ({
+            ...e,
+            studentId: e.student_id,
+            reportingCycle: e.reporting_cycle,
+          })) as any[]);
+        }
+      }
+    };
+    fetchData();
   }, []);
 
   // Group evaluations by reporting cycle

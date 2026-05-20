@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getDB, initDB, Teacher, ReportingCycle, Subject } from '@/lib/store';
+import { Teacher, ReportingCycle, Subject } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function NewEvaluationPage() {
   const router = useRouter();
@@ -15,25 +16,34 @@ export default function NewEvaluationPage() {
   const [selectedSubject, setSelectedSubject] = useState("");
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    const teacherId = localStorage.getItem('teacher_logged_in_id');
-    if (teacherId) {
-      const loggedInTeacher = (db.teachers || []).find(t => t.id === teacherId);
-      if (loggedInTeacher) {
-        setTeacher(loggedInTeacher);
-        setCycles(db.reportingCycles || []);
-        setSubjects(db.subjects || []);
-        
-        // Auto-select first cycle if available
-        const activeCycle = db.reportingCycles?.find(c => c.status === 'Active');
-        if (activeCycle) setSelectedCycle(activeCycle.name);
+    const fetchData = async () => {
+      // Get teacher
+      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      if (teacherData && teacherData.length > 0) {
+        const dbTeacher = teacherData[0];
+        setTeacher({
+          ...dbTeacher,
+          subjectsAssigned: dbTeacher.subjects_assigned || dbTeacher.subjectsAssigned || [],
+          gradesAssigned: dbTeacher.grades_assigned || dbTeacher.gradesAssigned || [],
+        } as Teacher);
       } else {
-        router.push('/teacher/login');
+        router.push('/');
+        return;
       }
-    } else {
-      router.push('/teacher/login');
-    }
+
+      // Get cycles (demo hardcoded or from db)
+      // Since we don't have cycles in our store update, let's just use some default cycles
+      const defaultCycles: ReportingCycle[] = [
+        { id: "rc1", name: "Jun-Jul 2026", startDate: "2026-06-01", endDate: "2026-07-31", gradesIncluded: ["Grade 1: The Pioneers", "Grade 2"], status: "Completed" },
+        { id: "rc2", name: "Aug-Sep 2026", startDate: "2026-08-01", endDate: "2026-09-30", gradesIncluded: ["Grade 1: The Pioneers", "Grade 2"], status: "Active" }
+      ];
+      setCycles(defaultCycles);
+      
+      const activeCycle = defaultCycles.find(c => c.status === 'Active');
+      if (activeCycle) setSelectedCycle(activeCycle.name);
+    };
+
+    fetchData();
   }, [router]);
 
   const handleContinue = (e: React.FormEvent) => {

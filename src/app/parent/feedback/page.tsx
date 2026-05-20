@@ -1,21 +1,26 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getDB, initDB, Student } from '@/lib/store';
+import { Student } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function ParentFeedbackPage() {
   const [student, setStudent] = useState<Student | null>(null);
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    const studentId = localStorage.getItem('parent_logged_in_student_id');
-    if (studentId) {
-      const studentData = db.students.find(s => s.id === studentId);
-      if (studentData) {
-        setStudent(studentData);
+    const fetchStudent = async () => {
+      const { data } = await supabase.from('students').select('*').limit(1);
+      if (data && data.length > 0) {
+        const dbStudent = data[0];
+        setStudent({
+          ...dbStudent,
+          admissionId: dbStudent.admission_id || dbStudent.admissionId,
+          parentName: dbStudent.parent_name || dbStudent.parentName,
+          parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
+        } as Student);
       }
-    }
+    };
+    fetchStudent();
   }, []);
 
   return (

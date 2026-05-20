@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { getDB, initDB, Teacher } from '@/lib/store';
+import { Teacher } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function TeacherLayout({
   children,
@@ -21,25 +22,31 @@ export default function TeacherLayout({
       return;
     }
 
-    initDB();
-    const db = getDB();
-    const teacherId = localStorage.getItem('teacher_logged_in_id');
-    
-    if (!teacherId) {
-      router.replace('/teacher/login');
+    const fetchTeacher = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace('/');
+        setIsLoading(false);
+        return;
+      }
+      
+      const { data } = await supabase.from('teachers').select('*').limit(1);
+      if (data && data.length > 0) {
+        const dbTeacher = data[0];
+        setTeacher({
+          ...dbTeacher,
+          subjectsAssigned: dbTeacher.subjects_assigned || dbTeacher.subjectsAssigned || [],
+          gradesAssigned: dbTeacher.grades_assigned || dbTeacher.gradesAssigned || [],
+          employeeId: dbTeacher.employee_id || dbTeacher.employeeId,
+          contactNumber: dbTeacher.contact_number || dbTeacher.contactNumber,
+        } as Teacher);
+      } else {
+        router.replace('/');
+      }
       setIsLoading(false);
-      return;
-    }
-    
-    const loggedInTeacher = (db.teachers || []).find(t => t.id === teacherId);
-    
-    if (loggedInTeacher) {
-      setTeacher(loggedInTeacher);
-    } else {
-      router.replace('/teacher/login');
-    }
-    
-    setIsLoading(false);
+    };
+
+    fetchTeacher();
   }, [router, pathname]);
 
   if (pathname === '/teacher/login') return <>{children}</>;
@@ -71,9 +78,9 @@ export default function TeacherLayout({
           </Link>
         </nav>
         <div className="p-4 mt-auto">
-          <button onClick={() => {
-            localStorage.removeItem('teacher_logged_in_id');
-            router.replace('/teacher/login');
+          <button onClick={async () => {
+            await supabase.auth.signOut();
+            router.replace('/');
           }} className="w-full flex items-center space-x-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl font-medium transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
             <span>Log Out</span>

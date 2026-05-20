@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getDB, setDB, Student } from '@/lib/store';
+import { Student } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function ParentSettings() {
   const [student, setStudent] = useState<Student | null>(null);
@@ -10,15 +11,22 @@ export default function ParentSettings() {
   const [message, setMessage] = useState({ text: '', type: '' });
 
   useEffect(() => {
-    const db = getDB();
-    const studentId = localStorage.getItem('parent_logged_in_student_id');
-    if (studentId) {
-      const loggedInStudent = db.students.find(s => s.id === studentId);
-      if (loggedInStudent) setStudent(loggedInStudent);
-    }
+    const fetchStudent = async () => {
+      const { data } = await supabase.from('students').select('*').limit(1);
+      if (data && data.length > 0) {
+        const dbStudent = data[0];
+        setStudent({
+          ...dbStudent,
+          admissionId: dbStudent.admission_id || dbStudent.admissionId,
+          parentName: dbStudent.parent_name || dbStudent.parentName,
+          parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
+        } as Student);
+      }
+    };
+    fetchStudent();
   }, []);
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       setMessage({ text: 'Passwords do not match.', type: 'error' });
@@ -30,14 +38,15 @@ export default function ParentSettings() {
     }
 
     if (student) {
-      const db = getDB();
-      const idx = db.students.findIndex(s => s.id === student.id);
-      if (idx >= 0) {
-        db.students[idx] = { ...db.students[idx], parentPassword: password };
-        setDB(db);
+      // In a real app we'd update Auth, but here we just update the db field if needed
+      const { error } = await supabase.auth.updateUser({ password });
+      
+      if (!error) {
         setMessage({ text: 'Password updated successfully.', type: 'success' });
         setPassword('');
         setConfirmPassword('');
+      } else {
+        setMessage({ text: 'Failed to update password: ' + error.message, type: 'error' });
       }
     }
   };

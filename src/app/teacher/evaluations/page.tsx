@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getDB, Evaluation, Teacher, Student, initDB } from '@/lib/store';
+import { Evaluation, Teacher, Student } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function EvaluationsPage() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
@@ -11,20 +12,44 @@ export default function EvaluationsPage() {
   const [activeCycle, setActiveCycle] = useState<string>("");
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    setEvaluations(db.evaluations || []);
-    setStudents(db.students || []);
+    const fetchData = async () => {
+      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      
+      let loggedInTeacher = null;
+      if (teacherData && teacherData.length > 0) {
+        loggedInTeacher = {
+          ...teacherData[0],
+          subjectsAssigned: teacherData[0].subjects_assigned || [],
+          gradesAssigned: teacherData[0].grades_assigned || [],
+        } as Teacher;
+        setTeacher(loggedInTeacher);
+      }
 
-    const teacherId = localStorage.getItem('teacher_logged_in_id');
-    if (teacherId) {
-      const loggedInTeacher = (db.teachers || []).find(t => t.id === teacherId);
-      if (loggedInTeacher) setTeacher(loggedInTeacher);
-    }
+      if (loggedInTeacher) {
+        const { data: studentsData } = await supabase.from('students').select('*');
+        if (studentsData) {
+          setStudents(studentsData.map(s => ({
+            ...s,
+            admissionId: s.admission_id
+          })) as any[]);
+        }
+
+        const { data: evalsData } = await supabase.from('evaluations').select('*');
+        if (evalsData) {
+          setEvaluations(evalsData.map(e => ({
+            ...e,
+            studentId: e.student_id,
+            studentName: e.student_name,
+            reportingCycle: e.reporting_cycle,
+          })) as any[]);
+        }
+      }
+
+      // active cycle
+      setActiveCycle("Jun-Jul 2026");
+    };
     
-    // Determine active cycle or fallback
-    const cycle = localStorage.getItem('reportingCycle') || "Jun-Jul 2026";
-    setActiveCycle(cycle);
+    fetchData();
   }, []);
 
   if (!teacher) return <div className="p-8">Loading evaluations...</div>;

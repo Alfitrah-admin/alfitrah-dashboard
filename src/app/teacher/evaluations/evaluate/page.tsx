@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getDB, initDB, Student, Evaluation, saveEvaluation } from '@/lib/store';
+import { getDB, initDB, Student, Evaluation } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 function EvaluateContent() {
   const router = useRouter();
@@ -15,6 +16,8 @@ function EvaluateContent() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [evaluationData, setEvaluationData] = useState<{ grades: Record<string, string>, comments: string }>({ grades: {}, comments: '' });
+  const [saving, setSaving] = useState(false);
+  const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
 
   // Common evaluation criteria for simplicity
   const criteria = [
@@ -25,17 +28,40 @@ function EvaluateContent() {
     "Overall Progress"
   ];
 
+  const fetchEvaluationsAndStudents = async () => {
+    // Note: We're replacing DB calls, but we also need the student list from Supabase
+    const { data: studentsData } = await supabase.from('students').select('*').eq('grade', className);
+    if (studentsData) {
+      // mapping snake_case from db if needed, assuming Student interface has admissionId etc.
+      setStudents(studentsData.map(s => ({
+        ...s,
+        admissionId: s.admission_id || s.admissionId
+      })) as any[]);
+    }
+    
+    const { data: evalsData } = await supabase.from('evaluations')
+      .select('*')
+      .eq('subject', subjectName)
+      .eq('grade', className)
+      .eq('reporting_cycle', cycleName);
+    
+    if (evalsData) {
+      setEvaluations(evalsData.map(e => ({
+        ...e,
+        studentId: e.student_id,
+        studentName: e.student_name,
+        reportingCycle: e.reporting_cycle,
+      })) as any[]);
+    }
+  };
+
   useEffect(() => {
     if (!className || !subjectName || !cycleName) {
       router.push('/teacher/evaluations');
       return;
     }
 
-    initDB();
-    const db = getDB();
-    const classStudents = (db.students || []).filter(s => s.grade === className);
-    setStudents(classStudents);
-    setEvaluations(db.evaluations || []);
+    fetchEvaluationsAndStudents();
   }, [className, subjectName, cycleName, router]);
 
   const handleStudentClick = (student: Student) => {
@@ -57,26 +83,51 @@ function EvaluateContent() {
     }
   };
 
-  const handleSaveEvaluation = (status: 'draft' | 'submitted') => {
+  const handleSaveEvaluation = async (status: 'draft' | 'submitted') => {
     if (!selectedStudent || !className || !subjectName || !cycleName) return;
 
-    saveEvaluation({
-      studentId: selectedStudent.id,
-      studentName: selectedStudent.name,
+    setSaving(true);
+    setActionMessage({ type: '', text: '' });
+
+    const evalData = {
+      student_id: selectedStudent.id,
+      student_name: selectedStudent.name,
       subject: subjectName,
       grade: className,
-      reportingCycle: cycleName,
+      reporting_cycle: cycleName,
       grades: evaluationData.grades,
       comments: evaluationData.comments,
       status
-    });
+    };
 
-    alert(`Evaluation ${status === 'submitted' ? 'submitted' : 'saved'} successfully!`);
-    
-    // Refresh evaluations
-    const db = getDB();
-    setEvaluations(db.evaluations || []);
-    setSelectedStudent(null);
+    const existingEval = evaluations.find(e => 
+      e.studentId === selectedStudent.id && 
+      e.subject === subjectName && 
+      e.grade === className && 
+      e.reportingCycle === cycleName
+    );
+
+    let err;
+
+    if (existingEval) {
+      const { error } = await supabase.from('evaluations').update(evalData).eq('id', existingEval.id);
+      err = error;
+    } else {
+      const { error } = await supabase.from('evaluations').insert([evalData]);
+      err = error;
+    }
+
+    setSaving(false);
+
+    if (err) {
+      setActionMessage({ type: 'error', text: 'Failed to save evaluation.' });
+    } else {
+      setActionMessage({ type: 'success', text: `Evaluation ${status === 'submitted' ? 'submitted' : 'saved'} successfully!` });
+      fetchEvaluationsAndStudents();
+      setTimeout(() => {
+        setActionMessage({ type: '', text: '' });
+      }, 3000);
+    }
   };
 
   if (!className || !subjectName || !cycleName) return null;
@@ -96,6 +147,12 @@ function EvaluateContent() {
           <p className="text-slate-500 text-sm mt-1">{className} • {cycleName}</p>
         </div>
       </div>
+
+      {actionMessage.text && (
+        <div className={`p-4 rounded-xl border ${actionMessage.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+          {actionMessage.text}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Student List */}
@@ -187,15 +244,18 @@ function EvaluateContent() {
               <div className="pt-6 border-t border-slate-100 flex justify-end space-x-3 mt-auto">
                 <button 
                   onClick={() => handleSaveEvaluation('draft')}
-                  className="px-6 py-2.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-xl font-medium transition-colors"
+                  disabled={saving}
+                  className="px-6 py-2.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-xl font-medium transition-colors disabled:opacity-50"
                 >
                   Save as Draft
                 </button>
                 <button 
                   onClick={() => handleSaveEvaluation('submitted')}
-                  className="px-6 py-2.5 bg-brand-emerald text-white hover:bg-emerald-600 rounded-xl font-bold shadow-sm transition-colors"
+                  disabled={saving}
+                  className="px-6 py-2.5 bg-brand-emerald text-white hover:bg-emerald-600 rounded-xl font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center"
                 >
-                  Submit Final
+                  {saving && <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                  {saving ? 'Saving...' : 'Submit Final'}
                 </button>
               </div>
             </>

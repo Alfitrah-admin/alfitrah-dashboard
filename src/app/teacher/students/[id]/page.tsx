@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getDB, initDB, Student, Teacher, Evaluation } from '@/lib/store';
+import { Student, Teacher, Evaluation } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function StudentProfilePage() {
   const params = useParams();
@@ -15,37 +16,56 @@ export default function StudentProfilePage() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    const tId = localStorage.getItem('teacher_logged_in_id');
-    
-    if (tId) {
-      const loggedInTeacher = (db.teachers || []).find(t => t.id === tId);
-      if (loggedInTeacher) {
+    const fetchData = async () => {
+      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      
+      let loggedInTeacher = null;
+      if (teacherData && teacherData.length > 0) {
+        loggedInTeacher = {
+          ...teacherData[0],
+          subjectsAssigned: teacherData[0].subjects_assigned || [],
+          gradesAssigned: teacherData[0].grades_assigned || [],
+        } as Teacher;
         setTeacher(loggedInTeacher);
-        
-        const foundStudent = (db.students || []).find(s => s.id === studentId);
-        if (foundStudent && loggedInTeacher.gradesAssigned?.includes(foundStudent.grade)) {
-          setStudent(foundStudent);
+      } else {
+        router.push('/');
+        return;
+      }
+
+      if (loggedInTeacher) {
+        const { data: studentData } = await supabase.from('students').select('*').eq('id', studentId).limit(1);
+        if (studentData && studentData.length > 0) {
+          const foundStudent = studentData[0];
           
-          // Only show evaluations for subjects this teacher teaches
-          const studentEvals = (db.evaluations || []).filter(e => 
-            e.studentId === studentId &&
-            loggedInTeacher.subjectsAssigned?.includes(e.subject) &&
-            e.status === 'submitted'
-          ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          
-          setEvaluations(studentEvals);
+          if (loggedInTeacher.gradesAssigned.includes(foundStudent.grade)) {
+            setStudent({
+              ...foundStudent,
+              admissionId: foundStudent.admission_id
+            } as Student);
+            
+            const { data: evalsData } = await supabase.from('evaluations')
+              .select('*')
+              .eq('student_id', studentId)
+              .eq('status', 'submitted');
+              
+            if (evalsData) {
+              const studentEvals = evalsData.filter(e => loggedInTeacher.subjectsAssigned.includes(e.subject)).map(e => ({
+                ...e,
+                studentId: e.student_id,
+                reportingCycle: e.reporting_cycle,
+              }));
+              setEvaluations(studentEvals as any[]);
+            }
+          } else {
+            router.push('/teacher/students');
+          }
         } else {
-          // Student not found or not in teacher's assigned grades
           router.push('/teacher/students');
         }
-      } else {
-        router.push('/teacher/login');
       }
-    } else {
-      router.push('/teacher/login');
-    }
+    };
+    
+    fetchData();
   }, [studentId, router]);
 
   if (!student || !teacher) return <div className="p-8">Loading profile...</div>;

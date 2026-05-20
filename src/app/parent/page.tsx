@@ -6,7 +6,8 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area
 } from 'recharts';
-import { getDB, initDB, Evaluation, Student } from '@/lib/store';
+import { Student, Evaluation } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 // --- MOCK DATA FOR CHARTS AND EXTENDED FEATURES ---
 const subjectRadarData = [
@@ -54,18 +55,37 @@ export default function ParentDashboard() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [student, setStudent] = useState<Student | null>(null);
 
-  useEffect(() => {
-    initDB();
-    const db = getDB();
-    const studentId = localStorage.getItem('parent_logged_in_student_id');
-    if (studentId) {
-      const studentData = db.students.find(s => s.id === studentId);
-      if (studentData) {
-        setStudent(studentData);
-        const childEvals = db.evaluations.filter(ev => ev.studentId === studentId && ev.status === 'submitted');
-        setEvaluations(childEvals);
+  const fetchChildData = async () => {
+    // Attempt to get the logged-in parent's child (for demo we can just take the first student if no matching metadata)
+    // Or check if there's a specific student ID passed
+    const { data: studentsData } = await supabase.from('students').select('*').limit(1);
+    
+    if (studentsData && studentsData.length > 0) {
+      const dbStudent = studentsData[0];
+      const selectedStudentId = dbStudent.id;
+      
+      setStudent({
+        ...dbStudent,
+        admissionId: dbStudent.admission_id || dbStudent.admissionId,
+        parentName: dbStudent.parent_name || dbStudent.parentName,
+        parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
+      } as Student);
+
+      const { data: evalsData } = await supabase.from('evaluations').select('*').eq('student_id', selectedStudentId).eq('status', 'submitted');
+      
+      if (evalsData) {
+        setEvaluations(evalsData.map(e => ({
+          ...e,
+          studentId: e.student_id,
+          studentName: e.student_name,
+          reportingCycle: e.reporting_cycle,
+        })) as any[]);
       }
     }
+  };
+
+  useEffect(() => {
+    fetchChildData();
   }, []);
 
   const getOverallProgress = (grades: Record<string, string> = {}) => {
