@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -6,6 +7,7 @@ import { Evaluation, Teacher, Student } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 
 export default function EvaluationsPage() {
+  const router = useRouter();
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [students, setStudents] = useState<Student[]>([]);

@@ -1,10 +1,12 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import { useEffect, useState } from 'react';
 import { Evaluation } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 
 export default function ParentReportsPage() {
+  const router = useRouter();
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
 
   useEffect(() => {

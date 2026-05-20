@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { Student } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 

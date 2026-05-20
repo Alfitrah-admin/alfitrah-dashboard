@@ -5,6 +5,7 @@ import { Student } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 
 export default function ParentAttendancePage() {
+  const router = useRouter();
   const [student, setStudent] = useState<Student | null>(null);
 
   useEffect(() => {
