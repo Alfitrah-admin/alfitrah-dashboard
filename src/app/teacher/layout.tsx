@@ -30,15 +30,15 @@ export default function TeacherLayout({
         return;
       }
       
-      const { data } = await supabase.from('teachers').select('*').limit(1);
+      const { data } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       if (data && data.length > 0) {
         const dbTeacher = data[0];
         setTeacher({
           ...dbTeacher,
-          subjectsAssigned: dbTeacher.subjects_assigned || dbTeacher.subjectsAssigned || [],
-          gradesAssigned: dbTeacher.grades_assigned || dbTeacher.gradesAssigned || [],
+          subjectsAssigned: dbTeacher.subjects || [],
+          gradesAssigned: dbTeacher.grades || [],
           employeeId: dbTeacher.employee_id || dbTeacher.employeeId,
-          contactNumber: dbTeacher.contact_number || dbTeacher.contactNumber,
+          contactNumber: dbTeacher.phone || dbTeacher.contactNumber,
         } as Teacher);
       } else {
         router.replace('/');

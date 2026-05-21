@@ -13,15 +13,19 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
       // Get teacher
-      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       
       let loggedInTeacher = null;
       if (teacherData && teacherData.length > 0) {
         loggedInTeacher = {
           ...teacherData[0],
-          subjectsAssigned: teacherData[0].subjects_assigned || [],
-          gradesAssigned: teacherData[0].grades_assigned || [],
+          subjectsAssigned: teacherData[0].subjects || [],
+          gradesAssigned: teacherData[0].grades || [],
         };
         setTeacher(loggedInTeacher);
       }

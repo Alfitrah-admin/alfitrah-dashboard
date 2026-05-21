@@ -35,12 +35,16 @@ export default function SubjectEvaluationWorkflow() {
       // Assuming classId matches the grade string, e.g., "Grade 1" or we can just fetch students
       // and filter by a grade name if classId is actually an id like "c0". 
       // But we just fetch all students and find the first matching ones for now.
-      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       let gradeName = "Grade 1";
-      if (teacherData && teacherData.length > 0 && teacherData[0].grades_assigned) {
+      if (teacherData && teacherData.length > 0 && teacherData[0].grades) {
         // If classId is something like "Grade 1", we decode it. Or if it's an index, we map it.
         // For now, let's just use the first assigned grade or decoded classId if it matches.
-        const grades = teacherData[0].grades_assigned;
+        const grades = teacherData[0].grades;
         const decoded = decodeURIComponent(classId);
         if (grades.includes(decoded)) {
           gradeName = decoded;

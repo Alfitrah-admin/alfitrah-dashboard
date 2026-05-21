@@ -2,33 +2,51 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getDB, initDB, setDB, Teacher } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
+
+interface TeacherDB {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  employee_id: string;
+  subjects: string[];
+  grades: string[];
+}
 
 export default function TeachersAdmin() {
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teachers, setTeachers] = useState<TeacherDB[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [formData, setFormData] = useState<Partial<Teacher>>({ subjectsAssigned: [], gradesAssigned: [] });
+  const [editingTeacher, setEditingTeacher] = useState<TeacherDB | null>(null);
+  const [formData, setFormData] = useState<Partial<TeacherDB>>({ subjects: [], grades: [] });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const ALL_SUBJECTS = ["Quran", "Islamic Studies", "Malayalam", "Hindi", "Arabic", "English", "Maths", "EVS (Environmental Studies)", "Science", "Social Studies", "Computer Science"];
   const ALL_GRADES = ["Grade 1: The Pioneers", "Grade 1: The Visionaries", "Grade 2", "Grade 3", "Grade 4"];
 
+  const fetchTeachers = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('teachers').select('*');
+    if (data) {
+      setTeachers(data as TeacherDB[]);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    setTeachers(db.teachers);
+    fetchTeachers();
   }, []);
 
-  const openModal = (teacher: Teacher | null = null) => {
+  const openModal = (teacher: TeacherDB | null = null) => {
     setEditingTeacher(teacher);
     if (teacher) {
       setFormData({...teacher});
     } else {
       setFormData({
-        id: `t${Date.now()}`,
-        employeeId: `EMP${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
-        subjectsAssigned: [],
-        gradesAssigned: []
+        employee_id: `EMP${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+        subjects: [],
+        grades: []
       });
     }
     setIsModalOpen(true);
@@ -37,35 +55,61 @@ export default function TeachersAdmin() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingTeacher(null);
-    setFormData({ subjectsAssigned: [], gradesAssigned: [] });
+    setFormData({ subjects: [], grades: [] });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name) return alert("Full Name is required");
-    if (!formData.password) return alert("Password is required");
+    if (!formData.email) return alert("Email is required");
     
-    const db = getDB();
+    setSaving(true);
+    
+    const teacherData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone || '',
+      employee_id: formData.employee_id,
+      subjects: formData.subjects || [],
+      grades: formData.grades || []
+    };
+
+    let error;
+
     if (editingTeacher) {
-      const idx = db.teachers.findIndex(t => t.id === editingTeacher.id);
-      if (idx >= 0) db.teachers[idx] = formData as Teacher;
+      const { error: updateError } = await supabase
+        .from('teachers')
+        .update(teacherData)
+        .eq('id', editingTeacher.id);
+      error = updateError;
     } else {
-      db.teachers.push(formData as Teacher);
+      const { error: insertError } = await supabase
+        .from('teachers')
+        .insert([teacherData]);
+      error = insertError;
     }
-    setDB(db);
-    setTeachers(db.teachers);
-    closeModal();
+
+    setSaving(false);
+
+    if (error) {
+      alert(error.message || 'Failed to save teacher');
+    } else {
+      fetchTeachers();
+      closeModal();
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this teacher?")) {
-      const db = getDB();
-      db.teachers = db.teachers.filter(t => t.id !== id);
-      setDB(db);
-      setTeachers(db.teachers);
+      const { error } = await supabase.from('teachers').delete().eq('id', id);
+      if (error) {
+        alert(error.message || 'Failed to delete teacher');
+      } else {
+        fetchTeachers();
+      }
     }
   };
 
-  const toggleSelection = (field: 'subjectsAssigned' | 'gradesAssigned', value: string) => {
+  const toggleSelection = (field: 'subjects' | 'grades', value: string) => {
     setFormData(prev => {
       const list = prev[field] || [];
       if (list.includes(value)) {
@@ -105,7 +149,7 @@ export default function TeachersAdmin() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800">{t.name}</h3>
-                  <p className="text-xs text-slate-500">ID: {t.employeeId}</p>
+                  <p className="text-xs text-slate-500">ID: {t.employee_id}</p>
                 </div>
               </div>
               <div className="flex space-x-2">
@@ -122,25 +166,25 @@ export default function TeachersAdmin() {
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Subjects Assigned</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {t.subjectsAssigned?.map(sub => (
+                  {t.subjects?.map(sub => (
                     <span key={sub} className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-medium">{sub}</span>
                   ))}
-                  {(!t.subjectsAssigned || t.subjectsAssigned.length === 0) && <span className="text-xs text-slate-400">None</span>}
+                  {(!t.subjects || t.subjects.length === 0) && <span className="text-xs text-slate-400">None</span>}
                 </div>
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Grades</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {t.gradesAssigned?.map(gr => (
+                  {t.grades?.map(gr => (
                     <span key={gr} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium">{gr}</span>
                   ))}
-                  {(!t.gradesAssigned || t.gradesAssigned.length === 0) && <span className="text-xs text-slate-400">None</span>}
+                  {(!t.grades || t.grades.length === 0) && <span className="text-xs text-slate-400">None</span>}
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-100">
                 <p className="text-xs text-slate-500 flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                  {t.contactNumber || 'No contact provided'}
+                  {t.phone || 'No phone provided'}
                 </p>
               </div>
             </div>
@@ -172,30 +216,30 @@ export default function TeachersAdmin() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Employee ID (Auto)</label>
-                  <input type="text" value={formData.employeeId} disabled className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-500 font-medium" />
+                  <input type="text" value={formData.employee_id || ''} disabled className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-500 font-medium" />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Contact Number</label>
-                <input 
-                  type="text" 
-                  value={formData.contactNumber || ''} 
-                  onChange={e => setFormData({...formData, contactNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Login Password <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
-                  value={formData.password || ''} 
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                  placeholder="Set teacher's initial password"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Email <span className="text-red-500">*</span></label>
+                  <input 
+                    type="email" 
+                    value={formData.email || ''} 
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                    placeholder="teacher@alfitrah.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Phone Number</label>
+                  <input 
+                    type="text" 
+                    value={formData.phone || ''} 
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
               </div>
 
               <div className="pt-4 border-t border-slate-100">
@@ -205,8 +249,8 @@ export default function TeachersAdmin() {
                     <label key={sub} className="flex items-center space-x-2 p-2 border border-slate-100 rounded-lg hover:bg-slate-50 cursor-pointer">
                       <input 
                         type="checkbox" 
-                        checked={formData.subjectsAssigned?.includes(sub)}
-                        onChange={() => toggleSelection('subjectsAssigned', sub)}
+                        checked={formData.subjects?.includes(sub)}
+                        onChange={() => toggleSelection('subjects', sub)}
                         className="rounded text-primary focus:ring-primary w-4 h-4"
                       />
                       <span className="text-sm text-slate-700">{sub}</span>
@@ -219,12 +263,12 @@ export default function TeachersAdmin() {
                 <label className="block text-sm font-bold text-slate-800 mb-3">Assign Grades / Classes</label>
                 <div className="flex flex-wrap gap-2">
                   {ALL_GRADES.map(gr => (
-                    <label key={gr} className={`px-4 py-2 border rounded-xl text-sm font-medium cursor-pointer transition-colors ${formData.gradesAssigned?.includes(gr) ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    <label key={gr} className={`px-4 py-2 border rounded-xl text-sm font-medium cursor-pointer transition-colors ${formData.grades?.includes(gr) ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                       <input 
                         type="checkbox" 
                         className="hidden"
-                        checked={formData.gradesAssigned?.includes(gr)}
-                        onChange={() => toggleSelection('gradesAssigned', gr)}
+                        checked={formData.grades?.includes(gr)}
+                        onChange={() => toggleSelection('grades', gr)}
                       />
                       {gr}
                     </label>
@@ -235,7 +279,9 @@ export default function TeachersAdmin() {
 
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3 shrink-0">
               <button onClick={closeModal} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors">Cancel</button>
-              <button onClick={handleSave} className="bg-primary hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors">Save Teacher</button>
+              <button disabled={saving} onClick={handleSave} className="bg-primary hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors flex items-center">
+                {saving ? 'Saving...' : 'Save Teacher'}
+              </button>
             </div>
           </div>
         </div>

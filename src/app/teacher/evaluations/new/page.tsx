@@ -17,14 +17,17 @@ export default function NewEvaluationPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Get teacher
-      const { data: teacherData } = await supabase.from('teachers').select('*').limit(1);
+      // Get session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       if (teacherData && teacherData.length > 0) {
         const dbTeacher = teacherData[0];
         setTeacher({
           ...dbTeacher,
-          subjectsAssigned: dbTeacher.subjects_assigned || dbTeacher.subjectsAssigned || [],
-          gradesAssigned: dbTeacher.grades_assigned || dbTeacher.gradesAssigned || [],
+          subjectsAssigned: dbTeacher.subjects || [],
+          gradesAssigned: dbTeacher.grades || [],
         } as Teacher);
       } else {
         router.push('/');
