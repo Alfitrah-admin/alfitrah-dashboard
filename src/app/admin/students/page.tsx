@@ -19,7 +19,7 @@ export default function StudentsAdmin() {
     setLoading(true);
     // Remove .order('created_at') in case the column doesn't exist
     const { data, error } = await supabase.from('students').select('*');
-    
+
     console.log("Supabase fetched students data:", data);
     if (error) console.error("Supabase fetch error:", error);
 
@@ -30,6 +30,7 @@ export default function StudentsAdmin() {
         admissionId: d.admission_id,
         parentName: d.parent_name,
         parentPhone: d.parent_phone,
+        status: d.status, //
       }));
       setStudents(mapped as Student[]);
     }
@@ -65,13 +66,13 @@ export default function StudentsAdmin() {
     const nameToSave = formData.name;
     const admissionIdToSave = formData.admissionId || (formData as any).admission_id;
     const parentPhoneToSave = formData.parentPhone || (formData as any).parent_phone;
-    
+
     if (!nameToSave) return alert("Full Name is required");
     if (!admissionIdToSave) return alert("Admission ID is required");
     if (!parentPhoneToSave) return alert("Parent Phone Number is required");
-    
+
     setSaving(true);
-    
+
     // Format for DB
     const studentData = {
       admission_id: admissionIdToSave,
@@ -105,7 +106,7 @@ export default function StudentsAdmin() {
       setActionMessage({ type: 'success', text: `Student ${editingStudent ? 'updated' : 'added'} successfully` });
       fetchStudents();
       closeModal();
-      
+
       setTimeout(() => setActionMessage({ type: '', text: '' }), 3000);
     }
   };
@@ -128,16 +129,16 @@ export default function StudentsAdmin() {
       <div className="flex justify-between items-center">
         <div>
           <Link href="/admin" className="text-slate-500 hover:text-primary font-medium flex items-center mb-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="m15 18-6-6 6-6"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><path d="m15 18-6-6 6-6" /></svg>
             Back to Admin
           </Link>
           <h2 className="text-2xl font-bold text-slate-800">Manage Students</h2>
         </div>
-        <button 
+        <button
           onClick={() => openModal()}
           className="bg-brand-emerald hover:bg-emerald-600 text-white px-4 py-2 rounded-xl font-medium shadow-sm transition-colors flex items-center"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
           Add Student
         </button>
       </div>
@@ -204,21 +205,21 @@ export default function StudentsAdmin() {
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h3 className="text-lg font-bold text-slate-800">{editingStudent ? 'Edit Student' : 'Add New Student'}</h3>
               <button onClick={closeModal} className="text-slate-400 hover:text-slate-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
             </div>
-            
+
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Admission ID <span className="text-red-500">*</span></label>
-                  <input type="text" value={formData.admissionId || ''} onChange={e => setFormData({...formData, admissionId: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald" placeholder="e.g. ADM-2026-001" />
+                  <input type="text" value={formData.admissionId || ''} onChange={e => setFormData({ ...formData, admissionId: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald" placeholder="e.g. ADM-2026-001" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Status</label>
-                  <select 
-                    value={formData.status} 
-                    onChange={e => setFormData({...formData, status: e.target.value as any})}
+                  <select
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value as any })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                   >
                     <option value="Active">Active</option>
@@ -226,13 +227,13 @@ export default function StudentsAdmin() {
                   </select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
-                  value={formData.name || ''} 
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                   placeholder="e.g. Ahmed Ali"
                 />
@@ -240,9 +241,9 @@ export default function StudentsAdmin() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Grade / Class</label>
-                <select 
-                  value={formData.grade || ''} 
-                  onChange={e => setFormData({...formData, grade: e.target.value})}
+                <select
+                  value={formData.grade || ''}
+                  onChange={e => setFormData({ ...formData, grade: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                 >
                   <option value="Grade 1: The Pioneers">Grade 1: The Pioneers</option>
@@ -256,30 +257,30 @@ export default function StudentsAdmin() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Parent Name</label>
-                  <input 
-                    type="text" 
-                    value={formData.parentName || ''} 
-                    onChange={e => setFormData({...formData, parentName: e.target.value})}
+                  <input
+                    type="text"
+                    value={formData.parentName || ''}
+                    onChange={e => setFormData({ ...formData, parentName: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Parent Phone Number <span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    value={formData.parentPhone || ''} 
-                    onChange={e => setFormData({...formData, parentPhone: e.target.value})}
+                  <input
+                    type="text"
+                    value={formData.parentPhone || ''}
+                    onChange={e => setFormData({ ...formData, parentPhone: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Parent Initial Password <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
-                  value={formData.parentPassword || ''} 
-                  onChange={e => setFormData({...formData, parentPassword: e.target.value})}
+                <input
+                  type="text"
+                  value={formData.parentPassword || ''}
+                  onChange={e => setFormData({ ...formData, parentPassword: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                   placeholder="Set an initial password"
                 />
