@@ -26,11 +26,11 @@ export default function StudentsAdmin() {
     if (data) {
       const mapped = data.map((d: any) => ({
         ...d,
-        id: d.id, // ensure id is mapped if needed
+        id: d.id,
         admissionId: d.admission_id,
         parentName: d.parent_name,
         parentPhone: d.parent_phone,
-        status: d.status, //
+        status: d.status
       }));
       setStudents(mapped as Student[]);
     }
