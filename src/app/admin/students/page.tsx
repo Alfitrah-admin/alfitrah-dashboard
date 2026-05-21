@@ -19,8 +19,13 @@ export default function StudentsAdmin() {
     setLoading(true);
     const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false });
     if (data) {
-      // Map db fields to our local type if needed, but assuming they match for now
-      setStudents(data as Student[]);
+      const mapped = data.map((d: any) => ({
+        ...d,
+        admissionId: d.admission_id,
+        parentName: d.parent_name,
+        parentPhone: d.parent_phone,
+      }));
+      setStudents(mapped as Student[]);
     }
     setLoading(false);
   };
@@ -51,19 +56,23 @@ export default function StudentsAdmin() {
   };
 
   const handleSave = async () => {
-    if (!formData.name) return alert("Full Name is required");
-    if (!formData.admissionId) return alert("Admission ID is required");
-    if (!formData.parentPhone) return alert("Parent Phone Number is required");
+    const nameToSave = formData.name;
+    const admissionIdToSave = formData.admissionId || (formData as any).admission_id;
+    const parentPhoneToSave = formData.parentPhone || (formData as any).parent_phone;
+    
+    if (!nameToSave) return alert("Full Name is required");
+    if (!admissionIdToSave) return alert("Admission ID is required");
+    if (!parentPhoneToSave) return alert("Parent Phone Number is required");
     
     setSaving(true);
     
     // Format for DB
     const studentData = {
-      admission_id: formData.admissionId,
-      name: formData.name,
+      admission_id: admissionIdToSave,
+      name: nameToSave,
       grade: formData.grade,
-      parent_name: formData.parentName,
-      parent_phone: formData.parentPhone,
+      parent_name: formData.parentName || (formData as any).parent_name,
+      parent_phone: parentPhoneToSave,
       status: formData.status
     };
 

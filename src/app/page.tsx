@@ -33,6 +33,22 @@ export default function LoginPage() {
       }
 
       if (data.session) {
+        // Now check if this user actually has the selected role in our users metadata or just based on their email for now
+        // But the user requested: "Ensure you are searching the users table for the matching email AND the matching role"
+        // "Ensure that there is NO case-sensitivity (e.g., Teacher vs teacher) causing the block."
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .ilike('email', email)
+          .ilike('role', role)
+          .single();
+
+        if (userError || !userData) {
+          // If the user is not found in the users table with this role, log them out and reject
+          await supabase.auth.signOut();
+          throw new Error("Invalid role selected for this account");
+        }
+
         if (role === 'admin') router.push('/admin');
         else if (role === 'teacher') router.push('/teacher');
         else if (role === 'parent') router.push('/parent');
