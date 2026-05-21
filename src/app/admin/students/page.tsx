@@ -17,10 +17,16 @@ export default function StudentsAdmin() {
 
   const fetchStudents = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false });
+    // Remove .order('created_at') in case the column doesn't exist
+    const { data, error } = await supabase.from('students').select('*');
+    
+    console.log("Supabase fetched students data:", data);
+    if (error) console.error("Supabase fetch error:", error);
+
     if (data) {
       const mapped = data.map((d: any) => ({
         ...d,
+        id: d.id, // ensure id is mapped if needed
         admissionId: d.admission_id,
         parentName: d.parent_name,
         parentPhone: d.parent_phone,
@@ -173,8 +179,8 @@ export default function StudentsAdmin() {
                 </td>
               </tr>
             ) : students.map(s => (
-              <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 text-slate-500">{s.admissionId || (s as any).admission_id}</td>
+              <tr key={s.id || s.admissionId} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                <td className="px-6 py-4 text-slate-500">{s.admissionId}</td>
                 <td className="px-6 py-4 font-medium text-slate-800">{s.name}</td>
                 <td className="px-6 py-4 text-slate-600">{s.grade}</td>
                 <td className="px-6 py-4">
@@ -183,12 +189,7 @@ export default function StudentsAdmin() {
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right space-x-3">
-                  <button onClick={() => openModal({
-                    ...s,
-                    admissionId: (s as any).admission_id,
-                    parentName: (s as any).parent_name,
-                    parentPhone: (s as any).parent_phone
-                  })} className="text-primary hover:text-indigo-700 font-medium transition-colors">Edit</button>
+                  <button onClick={() => openModal(s)} className="text-primary hover:text-indigo-700 font-medium transition-colors">Edit</button>
                   <button onClick={() => handleDelete(s.id)} className="text-red-500 hover:text-red-700 font-medium transition-colors">Delete</button>
                 </td>
               </tr>
