@@ -21,7 +21,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -41,7 +41,7 @@ export default function LoginPage() {
           .select('*')
           .ilike('email', email)
           .ilike('role', role)
-          .single();
+          .maybeSingle();
 
         if (userError || !userData) {
           // If the user is not found in the users table with this role, log them out and reject
@@ -65,7 +65,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative">
         <div className="absolute top-[-50px] left-[-50px] w-48 h-48 bg-brand-soft-blue rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-pulse" />
         <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-brand-muted-teal rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-pulse" style={{ animationDelay: '2000ms' }} />
-        
+
         <div className="glass-card p-8 relative z-10">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 mb-2">
@@ -83,11 +83,10 @@ export default function LoginPage() {
                     key={r}
                     type="button"
                     onClick={() => handleRoleChange(r)}
-                    className={`py-2 px-3 text-sm rounded-xl border font-medium transition-colors ${
-                      role === r 
-                        ? 'bg-primary text-white border-primary shadow-md' 
+                    className={`py-2 px-3 text-sm rounded-xl border font-medium transition-colors ${role === r
+                        ? 'bg-primary text-white border-primary shadow-md'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {r.charAt(0).toUpperCase() + r.slice(1)}
                   </button>
@@ -97,8 +96,8 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white/50"
@@ -108,8 +107,8 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white/50"
@@ -123,7 +122,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button 
+            <button
               type="submit"
               disabled={loading}
               className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold shadow-lg shadow-primary/30 transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center"
@@ -136,7 +135,7 @@ export default function LoginPage() {
               ) : 'Sign In'}
             </button>
           </form>
-          
+
         </div>
       </div>
     </div>
