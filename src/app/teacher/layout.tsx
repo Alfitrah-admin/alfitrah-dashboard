@@ -30,13 +30,25 @@ export default function TeacherLayout({
         return;
       }
       
+      const parseStringArray = (val: any) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+          if (val.startsWith('[')) {
+            try { return JSON.parse(val); } catch(e) {}
+          }
+          return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+      };
+
       const { data } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       if (data && data.length > 0) {
         const dbTeacher = data[0];
         setTeacher({
           ...dbTeacher,
-          subjectsAssigned: dbTeacher.subjects || [],
-          gradesAssigned: dbTeacher.grades || [],
+          subjectsAssigned: parseStringArray(dbTeacher.subjects),
+          gradesAssigned: parseStringArray(dbTeacher.grades),
           employeeId: dbTeacher.employee_id || dbTeacher.employeeId,
           contactNumber: dbTeacher.phone || dbTeacher.contactNumber,
         } as Teacher);

@@ -18,14 +18,26 @@ export default function TeacherDashboard() {
       if (!session) return;
 
       // Get teacher
+      const parseStringArray = (val: any) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+          if (val.startsWith('[')) {
+            try { return JSON.parse(val); } catch(e) {}
+          }
+          return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+      };
+
       const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       
       let loggedInTeacher = null;
       if (teacherData && teacherData.length > 0) {
         loggedInTeacher = {
           ...teacherData[0],
-          subjectsAssigned: teacherData[0].subjects || [],
-          gradesAssigned: teacherData[0].grades || [],
+          subjectsAssigned: parseStringArray(teacherData[0].subjects),
+          gradesAssigned: parseStringArray(teacherData[0].grades),
         };
         setTeacher(loggedInTeacher);
       }

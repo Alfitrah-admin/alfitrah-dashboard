@@ -21,13 +21,25 @@ export default function NewEvaluationPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const parseStringArray = (val: any) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+          if (val.startsWith('[')) {
+            try { return JSON.parse(val); } catch(e) {}
+          }
+          return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+      };
+
       const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       if (teacherData && teacherData.length > 0) {
         const dbTeacher = teacherData[0];
         setTeacher({
           ...dbTeacher,
-          subjectsAssigned: dbTeacher.subjects || [],
-          gradesAssigned: dbTeacher.grades || [],
+          subjectsAssigned: parseStringArray(dbTeacher.subjects),
+          gradesAssigned: parseStringArray(dbTeacher.grades),
         } as Teacher);
       } else {
         router.push('/');

@@ -84,8 +84,8 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => handleRoleChange(r)}
                     className={`py-2 px-3 text-sm rounded-xl border font-medium transition-colors ${role === r
-                        ? 'bg-primary text-white border-primary shadow-md'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                       }`}
                   >
                     {r.charAt(0).toUpperCase() + r.slice(1)}

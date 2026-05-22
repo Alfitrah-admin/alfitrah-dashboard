@@ -25,11 +25,28 @@ export default function TeachersAdmin() {
   const ALL_SUBJECTS = ["Quran", "Islamic Studies", "Malayalam", "Hindi", "Arabic", "English", "Maths", "EVS (Environmental Studies)", "Science", "Social Studies", "Computer Science"];
   const ALL_GRADES = ["Grade 1: The Pioneers", "Grade 1: The Visionaries", "Grade 2", "Grade 3", "Grade 4"];
 
+  const parseStringArray = (val: any) => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      if (val.startsWith('[')) {
+        try { return JSON.parse(val); } catch(e) {}
+      }
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
   const fetchTeachers = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('teachers').select('*');
     if (data) {
-      setTeachers(data as TeacherDB[]);
+      const parsedData = data.map((t: any) => ({
+        ...t,
+        subjects: parseStringArray(t.subjects),
+        grades: parseStringArray(t.grades)
+      }));
+      setTeachers(parsedData as TeacherDB[]);
     }
     setLoading(false);
   };
@@ -69,8 +86,8 @@ export default function TeachersAdmin() {
       email: formData.email,
       phone: formData.phone || '',
       employee_id: formData.employee_id,
-      subjects: formData.subjects || [],
-      grades: formData.grades || []
+      subjects: (formData.subjects || []).join(','),
+      grades: (formData.grades || []).join(',')
     };
 
     let error;

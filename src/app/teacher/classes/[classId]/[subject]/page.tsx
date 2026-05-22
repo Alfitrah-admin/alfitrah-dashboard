@@ -39,12 +39,24 @@ export default function SubjectEvaluationWorkflow() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      const parseStringArray = (val: any) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+          if (val.startsWith('[')) {
+            try { return JSON.parse(val); } catch(e) {}
+          }
+          return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+      };
+
       const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
       let gradeName = "Grade 1";
       if (teacherData && teacherData.length > 0 && teacherData[0].grades) {
         // If classId is something like "Grade 1", we decode it. Or if it's an index, we map it.
         // For now, let's just use the first assigned grade or decoded classId if it matches.
-        const grades = teacherData[0].grades;
+        const grades = parseStringArray(teacherData[0].grades);
         const decoded = decodeURIComponent(classId);
         if (grades.includes(decoded)) {
           gradeName = decoded;
