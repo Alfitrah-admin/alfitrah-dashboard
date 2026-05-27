@@ -45,6 +45,8 @@ export default function TeacherDashboard() {
         if (studentsData) {
           const studentList = studentsData.map(s => ({
             ...s,
+            id: s.id,
+            grade: s.grade,
             admissionId: s.admission_id,
             parentPhone: s.parent_phone,
             parentName: s.parent_name,
