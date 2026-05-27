@@ -30,7 +30,7 @@ export default function TeacherDashboard() {
         return [];
       };
 
-      const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
+      const { data: teacherData } = await supabase.from('teachers').select('*').ilike('email', session.user.email).limit(1);
       
       let loggedInTeacher = null;
       if (teacherData && teacherData.length > 0) {
