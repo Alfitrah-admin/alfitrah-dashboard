@@ -10,6 +10,7 @@ export default function TeacherDashboard() {
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [teacher, setTeacher] = useState<any>(null);
+  const [userName, setUserName] = useState<string>('Teacher');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,6 +30,11 @@ export default function TeacherDashboard() {
         }
         return [];
       };
+
+      const { data: userData } = await supabase.from('users').select('name').ilike('email', session.user.email).single();
+      if (userData && userData.name) {
+        setUserName(userData.name.split(' ')[0]);
+      }
 
       const { data: teacherData } = await supabase.from('teachers').select('*').ilike('email', session.user.email).limit(1);
       
@@ -139,7 +145,7 @@ export default function TeacherDashboard() {
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome back, {teacher ? teacher.name.split(' ')[0] : 'Teacher'}!</h2>
+              <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome back, {userName}!</h2>
               <p className="text-slate-600">You have <span className="font-semibold text-brand-emerald">{getPendingCount()} pending evaluations</span> for the {reportingCycle} reporting cycle.</p>
             </div>
             <div className="bg-white/80 p-1.5 rounded-xl border border-slate-200/60 shadow-sm flex items-center">
