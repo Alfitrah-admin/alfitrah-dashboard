@@ -23,7 +23,7 @@ export default function TeachersAdmin() {
   const [saving, setSaving] = useState(false);
 
   const ALL_SUBJECTS = ["Quran", "Islamic Studies", "Malayalam", "Hindi", "Arabic", "English", "Maths", "EVS (Environmental Studies)", "Science", "Social Studies", "Computer Science"];
-  const ALL_GRADES = ["Grade 1: The Pioneers", "Grade 1: The Visionaries", "Grade 2", "Grade 3", "Grade 4"];
+  const ALL_GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4"];
 
   const parseStringArray = (val: any) => {
     if (!val) return [];

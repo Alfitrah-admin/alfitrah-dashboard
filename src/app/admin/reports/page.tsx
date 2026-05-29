@@ -18,7 +18,7 @@ export default function ReportsAdmin() {
   const [students, setStudents] = useState<Student[]>([]);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
 
-  const ALL_GRADES = ["Grade 1: The Pioneers", "Grade 1: The Visionaries", "Grade 2", "Grade 3", "Grade 4"];
+  const ALL_GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4"];
 
   useEffect(() => {
     initDB();

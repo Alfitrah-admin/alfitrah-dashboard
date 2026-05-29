@@ -246,8 +246,7 @@ export default function StudentsAdmin() {
                   onChange={e => setFormData({ ...formData, grade: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                 >
-                  <option value="Grade 1: The Pioneers">Grade 1: The Pioneers</option>
-                  <option value="Grade 1: The Visionaries">Grade 1: The Visionaries</option>
+                  <option value="Grade 1">Grade 1</option>
                   <option value="Grade 2">Grade 2</option>
                   <option value="Grade 3">Grade 3</option>
                   <option value="Grade 4">Grade 4</option>

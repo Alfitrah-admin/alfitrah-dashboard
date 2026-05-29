@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getDB, initDB, getSubjectsForGrade } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function ClassSubjectsPage() {
   const params = useParams();
@@ -12,20 +12,70 @@ export default function ClassSubjectsPage() {
   const [subjects, setSubjects] = useState<string[]>([]);
   const [evaluations, setEvaluations] = useState<any[]>([]);
   const [studentsCount, setStudentsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    initDB();
-    const db = getDB();
-    const foundClass = db.classes.find(c => c.id === classId);
-    if (foundClass) {
-      setClassInfo(foundClass);
-      setSubjects(getSubjectsForGrade(foundClass.name));
-      setEvaluations(db.evaluations.filter(e => e.grade === foundClass.name));
-      setStudentsCount(db.students.filter(s => s.grade === foundClass.name).length);
-    }
+    const fetchClassData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const parseStringArray = (val: any) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+          if (val.startsWith('[')) {
+            try { return JSON.parse(val); } catch(e) {}
+          }
+          return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+      };
+
+      const { data: teacherData } = await supabase.from('teachers').select('*').ilike('email', session.user.email).limit(1);
+      
+      let gradeName = "Grade 1";
+      let assignedSubjects: string[] = [];
+      if (teacherData && teacherData.length > 0) {
+        const grades = parseStringArray(teacherData[0].grades);
+        assignedSubjects = parseStringArray(teacherData[0].subjects);
+        
+        // Match the classId (c0, c1, etc) with the index in grades
+        const idxMatch = classId.match(/^c(\d+)$/);
+        if (idxMatch && grades.length > parseInt(idxMatch[1])) {
+          gradeName = grades[parseInt(idxMatch[1])];
+        } else {
+          // If the classId is the grade string itself URL encoded
+          const decoded = decodeURIComponent(classId);
+          if (grades.includes(decoded)) {
+            gradeName = decoded;
+          } else {
+            gradeName = grades[0] || "Grade 1";
+          }
+        }
+      }
+
+      setClassInfo({ id: classId, name: gradeName });
+      
+      // Optional: you can filter subjects by both what's assigned to the teacher and what's assigned to the grade
+      setSubjects(assignedSubjects);
+
+      const { data: studentsData } = await supabase.from('students').select('*').eq('grade', gradeName);
+      if (studentsData) {
+        setStudentsCount(studentsData.length);
+      }
+
+      const { data: evalsData } = await supabase.from('evaluations').select('*').eq('grade', gradeName);
+      if (evalsData) {
+        setEvaluations(evalsData);
+      }
+      
+      setLoading(false);
+    };
+
+    fetchClassData();
   }, [classId]);
 
-  if (!classInfo) {
+  if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading class data...</div>;
   }
 
@@ -36,10 +86,16 @@ export default function ClassSubjectsPage() {
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
         </Link>
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">{classInfo.name} - Subjects</h2>
+          <h2 className="text-2xl font-bold text-slate-800">{classInfo?.name} - Subjects</h2>
           <p className="text-sm text-slate-500">{studentsCount} Students enrolled</p>
         </div>
       </div>
+
+      {studentsCount === 0 && (
+        <div className="glass-card p-6 mb-6 text-center text-slate-600 bg-slate-50/50">
+          No students found in this grade.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {subjects.map((subject) => {
