@@ -36,21 +36,12 @@ export default function ClassSubjectsPage() {
 
         const { data: teacherData } = await supabase.from('teachers').select('*').ilike('email', session.user.email).limit(1);
         
-        let gradeName = "Grade 1";
-        let assignedSubjects: string[] = [];
         if (teacherData && teacherData.length > 0) {
-          const grades = parseStringArray(teacherData[0].grades);
           assignedSubjects = parseStringArray(teacherData[0].subjects);
-          
-          // Try to match the exact slug with a grade
-          const matchedGrade = grades.find((g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === classId);
-          if (matchedGrade) {
-            gradeName = matchedGrade;
-          } else {
-            // Derive gradeName from slug if no match found
-            gradeName = classId.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-          }
         }
+
+        // Derive gradeName from slug e.g. "grade-4" -> "Grade 4"
+        const gradeName = classId.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
 
         setClassInfo({ id: classId, name: gradeName });
         setSubjects(assignedSubjects);

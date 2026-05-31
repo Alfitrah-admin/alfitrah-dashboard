@@ -61,11 +61,16 @@ export default function TeacherDashboard() {
           
           // Mock classes based on assigned grades
           if (loggedInTeacher.gradesAssigned) {
-            const assignedClasses = loggedInTeacher.gradesAssigned.map((grade: string) => ({
-              id: grade.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-              name: grade,
-              studentsCount: studentList.filter(s => s.grade === grade).length
-            }));
+            const assignedClasses = loggedInTeacher.gradesAssigned.map((grade: string) => {
+              const shortName = grade.split(':')[0].trim(); // "Grade 4"
+              const id = shortName.toLowerCase().replace(/\s+/g, '-'); // "grade-4"
+              return { 
+                id, 
+                name: grade, 
+                shortName, 
+                studentsCount: studentList.filter(s => s.grade === grade).length 
+              };
+            });
             setClasses(assignedClasses);
           }
         }
