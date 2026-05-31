@@ -48,9 +48,9 @@ function EvaluateContent() {
     if (evalsData) {
       setEvaluations(evalsData.map(e => ({
         ...e,
-        studentId: e.student_id,
+        student_id: e.student_id,
         studentName: e.student_name,
-        reportingCycle: e.reporting_cycle,
+        reporting_cycle: e.reporting_cycle,
       })) as any[]);
     }
   };
@@ -67,10 +67,10 @@ function EvaluateContent() {
   const handleStudentClick = (student: Student) => {
     setSelectedStudent(student);
     const existingEval = evaluations.find(e => 
-      e.studentId === student.id && 
+      e.student_id === student.id && 
       e.subject === subjectName && 
       e.grade === className && 
-      e.reportingCycle === cycleName
+      e.reporting_cycle === cycleName
     );
 
     if (existingEval) {
@@ -101,10 +101,10 @@ function EvaluateContent() {
     };
 
     const existingEval = evaluations.find(e => 
-      e.studentId === selectedStudent.id && 
+      e.student_id === selectedStudent.id && 
       e.subject === subjectName && 
       e.grade === className && 
-      e.reportingCycle === cycleName
+      e.reporting_cycle === cycleName
     );
 
     let err;
@@ -164,10 +164,10 @@ function EvaluateContent() {
             ) : (
               students.map(student => {
                 const existingEval = evaluations.find(e => 
-                  e.studentId === student.id && 
+                  e.student_id === student.id && 
                   e.subject === subjectName && 
                   e.grade === className && 
-                  e.reportingCycle === cycleName
+                  e.reporting_cycle === cycleName
                 );
                 const isSelected = selectedStudent?.id === student.id;
 

@@ -17,10 +17,10 @@ export default function SubjectEvaluationWorkflow() {
   const [students, setStudents] = useState<Student[]>([]);
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [indicators, setIndicators] = useState<string[]>([]);
-  const [reportingCycle, setReportingCycle] = useState("Jun-Jul 2026");
+  const [reporting_cycle, setreporting_cycle] = useState("Jun-Jul 2026");
   
   // Workflow state
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedstudent_id, setSelectedstudent_id] = useState<string | null>(null);
   const [formData, setFormData] = useState<{ grades: Record<string, string>; comments: string }>({ grades: {}, comments: '' });
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string>('');
@@ -29,7 +29,7 @@ export default function SubjectEvaluationWorkflow() {
 
   useEffect(() => {
     const cycle = "Jun-Jul 2026";
-    setReportingCycle(cycle);
+    setreporting_cycle(cycle);
 
     const fetchData = async () => {
       // Assuming classId matches the grade string, e.g., "Grade 1" or we can just fetch students
@@ -75,7 +75,7 @@ export default function SubjectEvaluationWorkflow() {
         }));
         setStudents(classStudents as any[]);
         if (classStudents.length > 0) {
-          setSelectedStudentId(classStudents[0].id);
+          setSelectedstudent_id(classStudents[0].id);
         }
       }
 
@@ -88,8 +88,8 @@ export default function SubjectEvaluationWorkflow() {
       if (evalsData) {
         setEvaluations(evalsData.map(e => ({
           ...e,
-          studentId: e.student_id,
-          reportingCycle: e.reporting_cycle,
+          student_id: e.student_id,
+          reporting_cycle: e.reporting_cycle,
         })) as any[]);
       }
       
@@ -102,9 +102,9 @@ export default function SubjectEvaluationWorkflow() {
 
   // Load student data into form when selected student changes
   useEffect(() => {
-    if (!selectedStudentId) return;
+    if (!selectedstudent_id) return;
 
-    const existingEval = evaluations.find(e => e.studentId === selectedStudentId);
+    const existingEval = evaluations.find(e => e.student_id === selectedstudent_id);
     if (existingEval) {
       setFormData({
         grades: { ...existingEval.grades },
@@ -118,7 +118,7 @@ export default function SubjectEvaluationWorkflow() {
     }
     setIsDirty(false);
     setSaveStatus('');
-  }, [selectedStudentId, evaluations, indicators]);
+  }, [selectedstudent_id, evaluations, indicators]);
 
   // Auto-save logic
   useEffect(() => {
@@ -147,8 +147,8 @@ export default function SubjectEvaluationWorkflow() {
   };
 
   const handleSave = (status: 'draft' | 'submitted') => {
-    if (!classInfo || !selectedStudentId) return;
-    const student = students.find(s => s.id === selectedStudentId);
+    if (!classInfo || !selectedstudent_id) return;
+    const student = students.find(s => s.id === selectedstudent_id);
     if (!student) return;
 
     const evalPayload = {
@@ -156,7 +156,7 @@ export default function SubjectEvaluationWorkflow() {
       student_name: student.name,
       grade: classInfo.name,
       subject: subjectName,
-      reporting_cycle: reportingCycle,
+      reporting_cycle: reporting_cycle,
       grades: formData.grades,
       comments: formData.comments,
       status: status,
@@ -166,7 +166,7 @@ export default function SubjectEvaluationWorkflow() {
     // Upsert into supabase
     const saveToDb = async () => {
       // Find if we already have one
-      const existing = evaluations.find(e => e.studentId === student.id);
+      const existing = evaluations.find(e => e.student_id === student.id);
       if (existing && existing.id) {
         await supabase.from('evaluations').update(evalPayload).eq('id', existing.id);
       } else {
@@ -179,7 +179,7 @@ export default function SubjectEvaluationWorkflow() {
 
     // Update local evaluations list
     setEvaluations(prev => {
-      const idx = prev.findIndex(e => e.studentId === student.id);
+      const idx = prev.findIndex(e => e.student_id === student.id);
       const newEval = { ...evalPayload, id: prev[idx]?.id || `e${Date.now()}`, date: new Date().toISOString() };
       if (idx >= 0) {
         const next = [...prev];
@@ -191,9 +191,9 @@ export default function SubjectEvaluationWorkflow() {
 
     // If submitted, move to next student automatically
     if (status === 'submitted') {
-      const currentIndex = students.findIndex(s => s.id === selectedStudentId);
+      const currentIndex = students.findIndex(s => s.id === selectedstudent_id);
       if (currentIndex < students.length - 1) {
-        setTimeout(() => setSelectedStudentId(students[currentIndex + 1].id), 500);
+        setTimeout(() => setSelectedstudent_id(students[currentIndex + 1].id), 500);
       }
     }
   };
@@ -202,7 +202,7 @@ export default function SubjectEvaluationWorkflow() {
     return <div className="p-8 text-center text-slate-500">Loading evaluation workflow...</div>;
   }
 
-  const selectedStudent = students.find(s => s.id === selectedStudentId);
+  const selectedStudent = students.find(s => s.id === selectedstudent_id);
   const submittedCount = evaluations.filter(e => e.status === 'submitted').length;
 
   return (
@@ -215,7 +215,7 @@ export default function SubjectEvaluationWorkflow() {
           </Link>
           <div>
             <h2 className="text-2xl font-bold text-slate-800">{subjectName} Evaluation</h2>
-            <p className="text-sm text-slate-500">{classInfo.name} • {reportingCycle}</p>
+            <p className="text-sm text-slate-500">{classInfo.name} • {reporting_cycle}</p>
           </div>
         </div>
         
@@ -238,14 +238,14 @@ export default function SubjectEvaluationWorkflow() {
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {students.map((student) => {
-              const ev = evaluations.find(e => e.studentId === student.id);
-              const isSelected = student.id === selectedStudentId;
+              const ev = evaluations.find(e => e.student_id === student.id);
+              const isSelected = student.id === selectedstudent_id;
               const status = ev ? ev.status : 'pending';
 
               return (
                 <button
                   key={student.id}
-                  onClick={() => setSelectedStudentId(student.id)}
+                  onClick={() => setSelectedstudent_id(student.id)}
                   className={`w-full text-left p-3 rounded-xl flex items-center justify-between transition-colors ${
                     isSelected ? 'bg-primary/10 border border-primary/20 shadow-sm' : 'hover:bg-slate-50 border border-transparent'
                   }`}
