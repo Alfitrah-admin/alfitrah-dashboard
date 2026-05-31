@@ -16,60 +16,59 @@ export default function ClassSubjectsPage() {
 
   useEffect(() => {
     const fetchClassData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const parseStringArray = (val: any) => {
-        if (!val) return [];
-        if (Array.isArray(val)) return val;
-        if (typeof val === 'string') {
-          if (val.startsWith('[')) {
-            try { return JSON.parse(val); } catch(e) {}
-          }
-          return val.split(',').map(s => s.trim()).filter(Boolean);
-        }
-        return [];
-      };
-
-      const { data: teacherData } = await supabase.from('teachers').select('*').ilike('email', session.user.email).limit(1);
-      
-      let gradeName = "Grade 1";
-      let assignedSubjects: string[] = [];
-      if (teacherData && teacherData.length > 0) {
-        const grades = parseStringArray(teacherData[0].grades);
-        assignedSubjects = parseStringArray(teacherData[0].subjects);
+      try {
+        setStudentsCount(0);
         
-        // Match the classId (c0, c1, etc) with the index in grades
-        const idxMatch = classId.match(/^c(\d+)$/);
-        if (idxMatch && grades.length > parseInt(idxMatch[1])) {
-          gradeName = grades[parseInt(idxMatch[1])];
-        } else {
-          // If the classId is the grade string itself URL encoded
-          const decoded = decodeURIComponent(classId);
-          if (grades.includes(decoded)) {
-            gradeName = decoded;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const parseStringArray = (val: any) => {
+          if (!val) return [];
+          if (Array.isArray(val)) return val;
+          if (typeof val === 'string') {
+            if (val.startsWith('[')) {
+              try { return JSON.parse(val); } catch(e) {}
+            }
+            return val.split(',').map(s => s.trim()).filter(Boolean);
+          }
+          return [];
+        };
+
+        const { data: teacherData } = await supabase.from('teachers').select('*').ilike('email', session.user.email).limit(1);
+        
+        let gradeName = "Grade 1";
+        let assignedSubjects: string[] = [];
+        if (teacherData && teacherData.length > 0) {
+          const grades = parseStringArray(teacherData[0].grades);
+          assignedSubjects = parseStringArray(teacherData[0].subjects);
+          
+          // Try to match the exact slug with a grade
+          const matchedGrade = grades.find((g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') === classId);
+          if (matchedGrade) {
+            gradeName = matchedGrade;
           } else {
-            gradeName = grades[0] || "Grade 1";
+            // Derive gradeName from slug if no match found
+            gradeName = classId.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
           }
         }
-      }
 
-      setClassInfo({ id: classId, name: gradeName });
-      
-      // Optional: you can filter subjects by both what's assigned to the teacher and what's assigned to the grade
-      setSubjects(assignedSubjects);
+        setClassInfo({ id: classId, name: gradeName });
+        setSubjects(assignedSubjects);
 
-      const { data: studentsData } = await supabase.from('students').select('*').eq('grade', gradeName);
-      if (studentsData) {
-        setStudentsCount(studentsData.length);
-      }
+        const { data: studentsData } = await supabase.from('students').select('*').ilike('grade', `${gradeName}%`);
+        if (studentsData) {
+          setStudentsCount(studentsData.length);
+        }
 
-      const { data: evalsData } = await supabase.from('evaluations').select('*').eq('grade', gradeName);
-      if (evalsData) {
-        setEvaluations(evalsData);
+        const { data: evalsData } = await supabase.from('evaluations').select('*').ilike('grade', `${gradeName}%`);
+        if (evalsData) {
+          setEvaluations(evalsData);
+        }
+      } catch (error) {
+        console.error("Error fetching class data:", error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     fetchClassData();
