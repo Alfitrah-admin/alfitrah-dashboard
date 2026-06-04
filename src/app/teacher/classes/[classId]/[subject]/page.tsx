@@ -52,22 +52,12 @@ export default function SubjectEvaluationWorkflow() {
       };
 
       const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
-      let gradeName = "Grade 1";
-      if (teacherData && teacherData.length > 0 && teacherData[0].grades) {
-        // If classId is something like "Grade 1", we decode it. Or if it's an index, we map it.
-        // For now, let's just use the first assigned grade or decoded classId if it matches.
-        const grades = parseStringArray(teacherData[0].grades);
-        const decoded = decodeURIComponent(classId);
-        if (grades.includes(decoded)) {
-          gradeName = decoded;
-        } else {
-          gradeName = grades[0] || "Grade 1";
-        }
-      }
+      // Derive gradeName from slug e.g. "grade-4" -> "Grade 4"
+      const gradeName = classId.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
       
       setClassInfo({ name: gradeName, id: classId });
 
-      const { data: studentsData } = await supabase.from('students').select('*').eq('grade', gradeName);
+      const { data: studentsData } = await supabase.from('students').select('*').ilike('grade', `${gradeName}%`);
       if (studentsData) {
         const classStudents = studentsData.map(s => ({
           ...s,
@@ -81,7 +71,7 @@ export default function SubjectEvaluationWorkflow() {
 
       const { data: evalsData } = await supabase.from('evaluations')
         .select('*')
-        .eq('grade', gradeName)
+        .ilike('grade', `${gradeName}%`)
         .eq('subject', subjectName)
         .eq('reporting_cycle', cycle);
         

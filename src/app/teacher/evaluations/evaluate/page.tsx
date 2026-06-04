@@ -29,8 +29,9 @@ function EvaluateContent() {
   ];
 
   const fetchEvaluationsAndStudents = async () => {
-    // Note: We're replacing DB calls, but we also need the student list from Supabase
-    const { data: studentsData } = await supabase.from('students').select('*').eq('grade', className);
+    const gradeName = className ? className.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+
+    const { data: studentsData } = await supabase.from('students').select('*').ilike('grade', `${gradeName}%`);
     if (studentsData) {
       // mapping snake_case from db if needed, assuming Student interface has admissionId etc.
       setStudents(studentsData.map(s => ({
@@ -42,7 +43,7 @@ function EvaluateContent() {
     const { data: evalsData } = await supabase.from('evaluations')
       .select('*')
       .eq('subject', subjectName)
-      .eq('grade', className)
+      .ilike('grade', `${gradeName}%`)
       .eq('reporting_cycle', cycleName);
     
     if (evalsData) {
