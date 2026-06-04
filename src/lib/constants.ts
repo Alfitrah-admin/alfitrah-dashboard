@@ -1,9 +1,9 @@
 export const GRADES = [
-  { value: "A+", label: "A+ (Excellent)", color: "text-brand-emerald bg-brand-emerald/10 border-brand-emerald/20" },
-  { value: "A", label: "A (Very Good)", color: "text-green-600 bg-green-50 border-green-200" },
-  { value: "B", label: "B (Good)", color: "text-blue-600 bg-blue-50 border-blue-200" },
-  { value: "C", label: "C (Improving)", color: "text-orange-500 bg-orange-50 border-orange-200" },
-  { value: "D", label: "D (Needs Attention)", color: "text-red-500 bg-red-50 border-red-200" },
+  { value: "A", label: "A (Excellent)", color: "text-brand-emerald bg-brand-emerald/10 border-brand-emerald/20" },
+  { value: "B", label: "B (Very Good)", color: "text-green-600 bg-green-50 border-green-200" },
+  { value: "C", label: "C (Good)", color: "text-blue-600 bg-blue-50 border-blue-200" },
+  { value: "D", label: "D (Improving)", color: "text-orange-500 bg-orange-50 border-orange-200" },
+  { value: "E", label: "E (Needs Attention)", color: "text-red-500 bg-red-50 border-red-200" },
 ];
 
 export const SUBJECT_INDICATORS: Record<string, string[]> = {
@@ -37,9 +37,9 @@ export const SUBJECT_INDICATORS: Record<string, string[]> = {
     "Respect Towards Teachers and Friends", "Islamic Vocabulary Understanding"
   ],
   "Maths": [
-    "Number Understanding", "Addition Skills", "Subtraction Skills", "Multiplication Skills", 
-    "Division Skills", "Mental Maths", "Word Problem Solving", "Table Memorisation", 
-    "Accuracy", "Logical Thinking"
+    "Number Understanding", "Addition", "Subtraction", "Multiplication", 
+    "Division", "Mental Maths", "Word Problems", "Table Memorisation", 
+    "Accuracy", "Logical Thinking", "Geometry/Shapes", "Fractions/Decimals"
   ],
   "EVS (Environmental Studies)": [
     "Concept Understanding", "Observation Skills", "Environmental Awareness", 
@@ -47,9 +47,9 @@ export const SUBJECT_INDICATORS: Record<string, string[]> = {
     "Curiosity and Questioning", "Oral Responses"
   ],
   "Computer Science": [
-    "Computer Parts Identification", "Mouse Control", "Keyboard Familiarity", 
-    "Typing Basics", "Digital Confidence", "Creativity in Activities", 
-    "Following Instructions", "Basic Software Usage"
+    "Parts Identification", "Mouse Control", "Keyboard Familiarity", 
+    "Typing Basics", "Digital Confidence", "Creativity", 
+    "Following Instructions", "Understanding AI", "Software Usage", "Online Safety", "Basic Logic"
   ],
   "Science": [
     "Concept Understanding", "Observation Skills", "Environmental Awareness", 

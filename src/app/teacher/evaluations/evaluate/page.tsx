@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getDB, initDB, Student, Evaluation } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { getIndicatorsForSubject, GRADES } from '@/lib/constants';
 
 function EvaluateContent() {
   const router = useRouter();
@@ -19,14 +20,7 @@ function EvaluateContent() {
   const [saving, setSaving] = useState(false);
   const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
 
-  // Common evaluation criteria for simplicity
-  const criteria = [
-    "Participation",
-    "Understanding of Concepts",
-    "Homework Completion",
-    "Behavior",
-    "Overall Progress"
-  ];
+  const criteria = getIndicatorsForSubject(subjectName || "");
 
   const fetchEvaluationsAndStudents = async () => {
     const gradeName = className ? className.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
@@ -75,7 +69,7 @@ function EvaluateContent() {
     );
 
     if (existingEval) {
-      setEvaluationData({ grades: existingEval.grades, comments: existingEval.comments });
+      setEvaluationData({ grades: existingEval.grade_value || existingEval.grades || {}, comments: existingEval.comments || '' });
     } else {
       // Init default grades
       const initialGrades: Record<string, string> = {};
@@ -96,7 +90,7 @@ function EvaluateContent() {
       subject: subjectName,
       grade: className,
       reporting_cycle: cycleName,
-      grades: evaluationData.grades,
+      grade_value: evaluationData.grades,
       comments: evaluationData.comments,
       status
     };
@@ -219,12 +213,9 @@ function EvaluateContent() {
                           onChange={e => setEvaluationData(prev => ({ ...prev, grades: { ...prev.grades, [criterion]: e.target.value } }))}
                           className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
                         >
-                          <option value="A+">A+</option>
-                          <option value="A">A</option>
-                          <option value="B+">B+</option>
-                          <option value="B">B</option>
-                          <option value="C">C</option>
-                          <option value="D">D</option>
+                          {GRADES.map(g => (
+                            <option key={g.value} value={g.value}>{g.value}</option>
+                          ))}
                         </select>
                       </div>
                     ))}

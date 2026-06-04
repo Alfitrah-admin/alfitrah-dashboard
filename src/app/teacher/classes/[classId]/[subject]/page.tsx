@@ -97,7 +97,7 @@ export default function SubjectEvaluationWorkflow() {
     const existingEval = evaluations.find(e => e.student_id === selectedstudent_id);
     if (existingEval) {
       setFormData({
-        grades: { ...existingEval.grades },
+        grades: { ...(existingEval.grade_value || existingEval.grades) },
         comments: existingEval.comments || ''
       });
     } else {
@@ -147,7 +147,7 @@ export default function SubjectEvaluationWorkflow() {
       grade: classInfo.name,
       subject: subjectName,
       reporting_cycle: reporting_cycle,
-      grades: formData.grades,
+      grade_value: formData.grades,
       comments: formData.comments,
       status: status,
       date: new Date().toISOString()
