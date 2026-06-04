@@ -36,6 +36,7 @@ export default function ClassSubjectsPage() {
 
         const { data: teacherData } = await supabase.from('teachers').select('*').ilike('email', session.user.email).limit(1);
         
+        let assignedSubjects: string[] = [];
         if (teacherData && teacherData.length > 0) {
           assignedSubjects = parseStringArray(teacherData[0].subjects);
         }
