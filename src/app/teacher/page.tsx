@@ -21,12 +21,19 @@ export default function TeacherDashboard() {
       // Get teacher
       const parseStringArray = (val: any) => {
         if (!val) return [];
-        if (Array.isArray(val)) return val;
+        if (Array.isArray(val)) {
+          return val.flatMap(s => typeof s === 'string' ? s.split(/,| and | & /).map(x => x.trim()).filter(Boolean) : s);
+        }
         if (typeof val === 'string') {
           if (val.startsWith('[')) {
-            try { return JSON.parse(val); } catch(e) {}
+            try { 
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                return parsed.flatMap(s => typeof s === 'string' ? s.split(/,| and | & /).map(x => x.trim()).filter(Boolean) : s);
+              }
+            } catch(e) {}
           }
-          return val.split(',').map(s => s.trim()).filter(Boolean);
+          return val.split(/,| and | & /).map(s => s.trim()).filter(Boolean);
         }
         return [];
       };
