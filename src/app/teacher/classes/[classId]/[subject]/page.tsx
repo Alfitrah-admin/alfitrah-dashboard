@@ -1,347 +1,229 @@
-"use client";
-
-import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+'use client';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Student, Evaluation } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
-import { getIndicatorsForSubject, GRADES } from '@/lib/constants';
 
-export default function SubjectEvaluationWorkflow() {
-  const params = useParams();
-  const router = useRouter();
-  const classId = params.classId as string;
-  const subjectName = decodeURIComponent(params.subject as string);
-  
-  const [classInfo, setClassInfo] = useState<any>(null);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
-  const [indicators, setIndicators] = useState<string[]>([]);
-  const [reporting_cycle, setreporting_cycle] = useState("Jun-Jul 2026");
-  
-  // Workflow state
-  const [selectedstudent_id, setSelectedstudent_id] = useState<string | null>(null);
-  const [formData, setFormData] = useState<{ grades: Record<string, string>; comments: string }>({ grades: {}, comments: '' });
-  const [isDirty, setIsDirty] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<string>('');
+const SUBJECT_CRITERIA: Record<string, string[]> = {
+  Maths: [
+    'Number Understanding',
+    'Addition Skills',
+    'Subtraction Skills',
+    'Multiplication Skills',
+    'Division Skills',
+    'Mental Maths',
+    'Word Problem Solving',
+    'Table Memorisation',
+    'Accuracy',
+    'Logical Thinking',
+    'Geometry & Shapes',
+    'Fractions & Decimals'
+  ],
+  'Computer Science': [
+    'Computer Parts Identification',
+    'Mouse Control',
+    'Keyboard Familiarity',
+    'Typing Basics',
+    'Digital Confidence',
+    'Creativity in Activities',
+    'Following Instructions',
+    'Understanding AI',
+    'Basic Software Usage',
+    'Online Safety & Ethics',
+    'Basic Problem Solving/Logic'
+  ],
+  Default: ['General Performance', 'Participation', 'Behavior']
+};
 
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+function slugToText(slug: string) {
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export default function SubjectEvaluationPage({ params }: { params: { classId: string; subject: string } }) {
+  const { classId: id, subject } = params; // id = 'grade-4', subject = 'maths' or 'computer-science'
+  const gradeName = useMemo(() => slugToText(id), [id]); // "Grade 4"
+  const subjectName = useMemo(() => slugToText(subject), [subject]); // "Maths" or "Computer Science"
+  const criteria = SUBJECT_CRITERIA[subjectName] ?? SUBJECT_CRITERIA['Default'];
+
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const [scores, setScores] = useState<Record<string,string>>({});
+  const [remarks, setRemarks] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [cycle, setCycle] = useState<string>('Jun-Jul 2026');
 
   useEffect(() => {
-    const cycle = "Jun-Jul 2026";
-    setreporting_cycle(cycle);
+    let mounted = true;
+    async function loadStudents() {
+      setLoading(true);
+      setStudents([]);
+      setSelectedStudent(null);
+      try {
+        const { data, error } = await supabase
+          .from('students')
+          .select('*')
+          .ilike('grade', `${gradeName}%`);
+        if (error) throw error;
+        if (!mounted) return;
+        setStudents(data || []);
+        if ((data || []).length > 0) setSelectedStudent((data as any[])[0]);
+      } catch (err) {
+        console.error('Failed to load students for', gradeName, err);
+        setStudents([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    loadStudents();
+    return () => { mounted = false; };
+  }, [gradeName]);
 
-    const fetchData = async () => {
-      // Assuming classId matches the grade string, e.g., "Grade 1" or we can just fetch students
-      // and filter by a grade name if classId is actually an id like "c0". 
-      // But we just fetch all students and find the first matching ones for now.
-      // Get session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const parseStringArray = (val: any) => {
-        if (!val) return [];
-        if (Array.isArray(val)) return val;
-        if (typeof val === 'string') {
-          if (val.startsWith('[')) {
-            try { return JSON.parse(val); } catch(e) {}
-          }
-          return val.split(',').map(s => s.trim()).filter(Boolean);
+  useEffect(() => {
+    setScores({});
+    setRemarks('');
+    if (!selectedStudent) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('evaluations')
+          .select('grade_value, comments')
+          .eq('student_id', selectedStudent.id)
+          .eq('subject', subjectName)
+          .eq('reporting_cycle', cycle)
+          .single();
+        if (!mounted) return;
+        if (data) {
+          const existing = typeof data.grade_value === 'string' ? JSON.parse(data.grade_value) : data.grade_value;
+          setScores(existing || {});
+          setRemarks(data.comments || '');
         }
-        return [];
-      };
-
-      const { data: teacherData } = await supabase.from('teachers').select('*').eq('email', session.user.email).limit(1);
-      // Derive gradeName from slug e.g. "grade-4" -> "Grade 4"
-      const gradeName = classId.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
-      
-      setClassInfo({ name: gradeName, id: classId });
-
-      const { data: studentsData } = await supabase.from('students').select('*').ilike('grade', `${gradeName}%`);
-      if (studentsData) {
-        const classStudents = studentsData.map(s => ({
-          ...s,
-          admissionId: s.admission_id
-        }));
-        setStudents(classStudents as any[]);
-        if (classStudents.length > 0) {
-          setSelectedstudent_id(classStudents[0].id);
-        }
+      } catch (e) {
+        // ignore not found
       }
+    })();
+    return () => { mounted = false; };
+  }, [selectedStudent, subjectName, cycle]);
 
-      const { data: evalsData } = await supabase.from('evaluations')
-        .select('*')
-        .ilike('grade', `${gradeName}%`)
-        .eq('subject', subjectName)
-        .eq('reporting_cycle', cycle);
-        
-      if (evalsData) {
-        setEvaluations(evalsData.map(e => ({
-          ...e,
-          student_id: e.student_id,
-          reporting_cycle: e.reporting_cycle,
-        })) as any[]);
-      }
-      
-      const subjectIndicators = getIndicatorsForSubject(subjectName);
-      setIndicators(subjectIndicators);
-    };
-
-    fetchData();
-  }, [classId, subjectName]);
-
-  // Load student data into form when selected student changes
-  useEffect(() => {
-    if (!selectedstudent_id) return;
-
-    const existingEval = evaluations.find(e => e.student_id === selectedstudent_id);
-    if (existingEval) {
-      setFormData({
-        grades: { ...(existingEval.grade_value || existingEval.grades) },
-        comments: existingEval.comments || ''
-      });
-    } else {
-      // Default to B for all indicators
-      const defaultGrades: Record<string, string> = {};
-      indicators.forEach(ind => defaultGrades[ind] = "B");
-      setFormData({ grades: defaultGrades, comments: '' });
-    }
-    setIsDirty(false);
-    setSaveStatus('');
-  }, [selectedstudent_id, evaluations, indicators]);
-
-  // Auto-save logic
-  useEffect(() => {
-    if (isDirty) {
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = setTimeout(() => {
-        handleSave('draft');
-      }, 30000); // Auto save every 30 seconds
-    }
-    return () => {
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    };
-  }, [formData, isDirty]);
-
-  const handleGradeChange = (indicator: string, gradeValue: string) => {
-    setFormData(prev => ({
-      ...prev,
-      grades: { ...prev.grades, [indicator]: gradeValue }
-    }));
-    setIsDirty(true);
-  };
-
-  const handleCommentChange = (comments: string) => {
-    setFormData(prev => ({ ...prev, comments }));
-    setIsDirty(true);
-  };
-
-  const handleSave = (status: 'draft' | 'submitted') => {
-    if (!classInfo || !selectedstudent_id) return;
-    const student = students.find(s => s.id === selectedstudent_id);
-    if (!student) return;
-
-    const evalPayload = {
-      student_id: student.id,
-      student_name: student.name,
-      grade: classInfo.name,
-      subject: subjectName,
-      reporting_cycle: reporting_cycle,
-      grade_value: formData.grades,
-      comments: formData.comments,
-      status: status,
-      date: new Date().toISOString()
-    };
-
-    // Upsert into supabase
-    const saveToDb = async () => {
-      // Find if we already have one
-      const existing = evaluations.find(e => e.student_id === student.id);
-      if (existing && existing.id) {
-        await supabase.from('evaluations').update(evalPayload).eq('id', existing.id);
-      } else {
-        await supabase.from('evaluations').insert(evalPayload);
-      }
-    };
-    saveToDb();
-    setSaveStatus(status === 'draft' ? 'Draft saved' : 'Evaluation submitted');
-    setIsDirty(false);
-
-    // Update local evaluations list
-    setEvaluations(prev => {
-      const idx = prev.findIndex(e => e.student_id === student.id);
-      const newEval = { ...evalPayload, id: prev[idx]?.id || `e${Date.now()}`, date: new Date().toISOString() };
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = newEval;
-        return next;
-      }
-      return [newEval, ...prev];
-    });
-
-    // If submitted, move to next student automatically
-    if (status === 'submitted') {
-      const currentIndex = students.findIndex(s => s.id === selectedstudent_id);
-      if (currentIndex < students.length - 1) {
-        setTimeout(() => setSelectedstudent_id(students[currentIndex + 1].id), 500);
-      }
-    }
-  };
-
-  if (!classInfo) {
-    return <div className="p-8 text-center text-slate-500">Loading evaluation workflow...</div>;
+  function onSelectScore(criterion: string, letter: string) {
+    setScores(prev => ({ ...prev, [criterion]: letter }));
   }
 
-  const selectedStudent = students.find(s => s.id === selectedstudent_id);
-  const submittedCount = evaluations.filter(e => e.status === 'submitted').length;
+  async function saveEvaluation() {
+    if (!selectedStudent) return;
+    setSaving(true);
+    const scoresObj = scores;
+    try {
+      // Find if we already have one
+      const { data: existingData } = await supabase
+        .from('evaluations')
+        .select('id')
+        .eq('student_id', selectedStudent.id)
+        .eq('subject', subjectName)
+        .eq('reporting_cycle', cycle)
+        .single();
+        
+      const payload = {
+        student_id: selectedStudent.id,
+        student_name: selectedStudent.name,
+        grade: gradeName,
+        subject: subjectName,
+        reporting_cycle: cycle,
+        grade_value: scoresObj,
+        comments: remarks,
+        status: 'submitted'
+      };
+      
+      let error;
+      if (existingData) {
+        const { error: updateError } = await supabase.from('evaluations').update(payload).eq('id', existingData.id);
+        error = updateError;
+      } else {
+        const { error: insertError } = await supabase.from('evaluations').insert([payload]);
+        error = insertError;
+      }
+      if (error) throw error;
+      alert('Saved successfully');
+    } catch (err) {
+      console.error('Failed to save evaluation', err);
+      alert('Failed to save evaluation. Check console.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100vh-120px)] flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6 shrink-0">
-        <div className="flex items-center space-x-4">
-          <Link href={`/teacher/classes/${classId}`} className="text-slate-500 hover:text-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    <div style={{ display: 'flex', gap: 24, padding: 24 }}>
+      <div style={{ width: 320, background: 'var(--color-background-secondary)', borderRadius: 12, padding: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+          <Link href={`/teacher/classes/${id}`} style={{ marginRight: 12, color: 'var(--color-text-tertiary)', textDecoration: 'none' }}>
+            ← Back
           </Link>
-          <div>
-            <h2 className="text-2xl font-bold text-slate-800">{subjectName} Evaluation</h2>
-            <p className="text-sm text-slate-500">{classInfo.name} • {reporting_cycle}</p>
-          </div>
+          <h3 style={{ margin: 0 }}>{subjectName} — {gradeName}</h3>
         </div>
-        
-        <div className="bg-white/80 px-4 py-2 rounded-full border border-slate-200/60 shadow-sm flex items-center">
-          <span className="text-sm font-medium text-slate-600 mr-2">Progress:</span>
-          <div className="w-24 bg-slate-200 rounded-full h-2 mr-3 overflow-hidden">
-            <div className="bg-brand-emerald h-full" style={{ width: `${(submittedCount / students.length) * 100}%` }}></div>
-          </div>
-          <span className="text-sm font-bold text-brand-emerald">{submittedCount}/{students.length}</span>
+        <div style={{ maxHeight: '64vh', overflow: 'auto' }}>
+          {loading ? <div style={{ padding: 20 }}>Loading students...</div> :
+            students.length === 0 ? <div style={{ padding: 20 }}>No students found in this grade.</div> :
+            students.map((s) => (
+              <div key={s.id} onClick={() => setSelectedStudent(s)} style={{
+                padding: '10px 12px', margin: '6px', borderRadius: 8, cursor: 'pointer',
+                background: selectedStudent?.id === s.id ? 'rgba(99,102,241,0.12)' : 'transparent'
+              }}>
+                <div style={{ fontWeight: 500 }}>{s.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>ID: {s.admission_id || s.id}</div>
+              </div>
+            ))
+          }
         </div>
       </div>
 
-      {/* Main Workspace */}
-      <div className="flex flex-1 gap-6 overflow-hidden">
-        
-        {/* Left Sidebar: Student List */}
-        <div className="w-1/3 glass-card flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-slate-200/50 shrink-0">
-            <h3 className="font-semibold text-slate-800">Students</h3>
-          </div>
-          <div className="overflow-y-auto flex-1 p-2 space-y-1">
-            {students.map((student) => {
-              const ev = evaluations.find(e => e.student_id === student.id);
-              const isSelected = student.id === selectedstudent_id;
-              const status = ev ? ev.status : 'pending';
-
-              return (
-                <button
-                  key={student.id}
-                  onClick={() => setSelectedstudent_id(student.id)}
-                  className={`w-full text-left p-3 rounded-xl flex items-center justify-between transition-colors ${
-                    isSelected ? 'bg-primary/10 border border-primary/20 shadow-sm' : 'hover:bg-slate-50 border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs mr-3">
-                      {student.name.charAt(0)}
-                    </div>
-                    <div>
-                      <h4 className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-slate-700'}`}>{student.name}</h4>
-                    </div>
-                  </div>
-                  <div>
-                    {status === 'submitted' && (
-                      <div className="w-5 h-5 rounded-full bg-brand-emerald flex items-center justify-center text-white" title="Submitted">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                    )}
-                    {status === 'draft' && (
-                      <div className="w-5 h-5 rounded-full bg-orange-400 flex items-center justify-center text-white" title="Draft">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                      </div>
-                    )}
-                    {status === 'pending' && (
-                      <div className="w-2 h-2 rounded-full bg-slate-300" title="Not Started"></div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Area: Evaluation Form */}
-        <div className="w-2/3 glass-card flex flex-col overflow-hidden relative">
-          {selectedStudent ? (
-            <>
-              <div className="p-6 border-b border-slate-200/50 shrink-0 flex justify-between items-center bg-white/40">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800">{selectedStudent.name}</h3>
-                  <p className="text-xs text-slate-500">ID: {selectedStudent.id}</p>
-                </div>
-                {saveStatus && (
-                  <span className="text-sm font-medium text-brand-emerald animate-pulse">✓ {saveStatus}</span>
-                )}
+      <div style={{ flex: 1, background: 'white', borderRadius: 12, padding: 20 }}>
+        {!selectedStudent ? <div style={{ padding: 30, textAlign: 'center', color: 'var(--color-text-tertiary)' }}>Select a student to begin evaluation</div> : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div>
+                <h2 style={{ margin: 0 }}>{selectedStudent.name}</h2>
+                <div style={{ color: 'var(--color-text-tertiary)', fontSize: 13 }}>ID: {selectedStudent.id}</div>
               </div>
-              
-              <div className="p-6 overflow-y-auto flex-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                  {indicators.map(indicator => {
-                    const currentVal = formData.grades[indicator] || "B";
-                    const gradeObj = GRADES.find(g => g.value === currentVal) || GRADES[2];
-                    
-                    return (
-                      <div key={indicator} className="flex flex-col">
-                        <label className="text-xs font-semibold text-slate-700 mb-1">{indicator}</label>
-                        <select
-                          value={currentVal}
-                          onChange={(e) => handleGradeChange(indicator, e.target.value)}
-                          className={`px-3 py-2 text-sm font-medium rounded-lg border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-emerald transition-colors ${gradeObj.color}`}
-                        >
-                          {GRADES.map(g => (
-                            <option key={g.value} value={g.value} className="bg-white text-slate-800 font-normal">
-                              {g.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Remarks & Feedback</label>
-                  <textarea 
-                    value={formData.comments}
-                    onChange={(e) => handleCommentChange(e.target.value)}
-                    rows={4}
-                    placeholder={`Write specific feedback for ${selectedStudent.name.split(' ')[0]}...`}
-                    className="w-full px-4 py-3 text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald bg-white/70 resize-none transition-shadow"
-                  ></textarea>
+              <div>
+                <div style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>Progress</div>
+                <div style={{ width: 180, height: 12, borderRadius: 8, background: '#eef2ff' }}>
+                  <div style={{ width: '0%', height: '100%', borderRadius: 8, background: '#60a5fa' }} />
                 </div>
               </div>
-
-              <div className="p-4 border-t border-slate-200/50 shrink-0 flex justify-end space-x-3 bg-white/60">
-                <button 
-                  onClick={() => handleSave('draft')}
-                  className="px-6 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold shadow-sm transition-colors flex items-center"
-                >
-                  Save as Draft
-                </button>
-                <button 
-                  onClick={() => handleSave('submitted')}
-                  className="px-6 py-2.5 bg-brand-emerald hover:bg-emerald-600 text-white rounded-xl font-bold shadow-md shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M20 6 9 17l-5-5"/></svg>
-                  Submit Final
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-500">
-              Select a student to begin evaluation
             </div>
-          )}
-        </div>
+
+            <div style={{ marginTop: 18 }}>
+              <h4 style={{ marginBottom: 8 }}>{subjectName} Criteria</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {criteria.map((c) => (
+                  <div key={c} style={{ padding: 12, borderRadius: 8, border: '1px solid var(--color-border-tertiary)' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>{c}</div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-start' }}>
+                      {['A','B','C','D','E'].map(letter => (
+                        <button key={letter} onClick={() => onSelectScore(c, letter)} style={{
+                          padding: '6px 10px', borderRadius: 6,
+                          border: scores[c] === letter ? '1px solid var(--color-text-info)' : '1px solid var(--color-border-tertiary)',
+                          background: scores[c] === letter ? 'rgba(99,102,241,0.12)' : 'transparent', cursor: 'pointer'
+                        }}>{letter}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 18 }}>
+              <h4 style={{ marginBottom: 8 }}>Remarks & Feedback</h4>
+              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder={`Write specific feedback for ${selectedStudent.name}...`} style={{ width: '100%', minHeight: 120, padding: 12, borderRadius: 8, border: '1px solid var(--color-border-tertiary)' }} />
+            </div>
+
+            <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+              <button onClick={saveEvaluation} disabled={saving} style={{ padding: '10px 16px', background: 'var(--color-text-info)', color: 'white', borderRadius: 8, border: 'none', cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Evaluation'}</button>
+              <button onClick={() => { setScores({}); setRemarks(''); }} style={{ padding: '10px 16px', background: 'transparent', borderRadius: 8, border: '1px solid var(--color-border-tertiary)', cursor: 'pointer' }}>Reset</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

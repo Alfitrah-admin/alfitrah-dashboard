@@ -62,11 +62,13 @@ export default function TeacherDashboard() {
           // Mock classes based on assigned grades
           if (loggedInTeacher.gradesAssigned) {
             const assignedClasses = loggedInTeacher.gradesAssigned.map((grade: string) => {
-              const id = grade.split(':')[0].trim().toLowerCase().replace(/\s+/g, '-');
+              const shortName = grade.split(':')[0].trim();
+              const id = shortName.toLowerCase().replace(/\s+/g, '-');
               return { 
                 id, 
                 name: grade, 
-                shortName: grade.split(':')[0].trim(), 
+                shortName, 
+                subjects: loggedInTeacher.subjectsAssigned || [],
                 studentsCount: studentList.filter(s => s.grade === grade).length 
               };
             });
@@ -185,24 +187,33 @@ export default function TeacherDashboard() {
           </div>
           <div className="space-y-4">
             {classes.map(c => (
-              <Link href={`/teacher/classes/${c.id}`} key={c.id}>
-                <div className="glass-card p-5 hover:border-brand-emerald/30 transition-colors group cursor-pointer mb-4">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 rounded-xl bg-brand-emerald/10 flex items-center justify-center text-brand-emerald font-bold text-lg">
-                        {c.name.split(' ')[1]}
+                <div className="glass-card p-5 hover:border-brand-emerald/30 transition-colors group mb-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 rounded-xl bg-brand-emerald/10 flex items-center justify-center text-brand-emerald font-bold text-lg mt-1">
+                        {c.shortName ? c.shortName.split(' ')[1] : c.name.split(' ')[1]}
                       </div>
                       <div>
-                        <h4 className="font-semibold text-slate-800 group-hover:text-brand-emerald transition-colors">{c.name}</h4>
-                        <p className="text-sm text-slate-500">{c.studentsCount} Students</p>
+                        <Link href={`/teacher/classes/${c.id}`}>
+                          <h4 className="font-semibold text-slate-800 group-hover:text-brand-emerald transition-colors cursor-pointer">{c.name}</h4>
+                        </Link>
+                        <p className="text-sm text-slate-500 mb-3">{c.studentsCount} Students</p>
+                        <div className="flex flex-wrap gap-2">
+                          {c.subjects?.map((subject: string) => {
+                            const subjectSlug = subject.toLowerCase().replace(/\s+/g, '-');
+                            return (
+                              <Link key={`${c.id}-${subjectSlug}`} href={`/teacher/classes/${c.id}/${subjectSlug}`}>
+                                <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg text-xs font-medium hover:bg-indigo-100 hover:border-indigo-200 transition-colors cursor-pointer">
+                                  {subject}
+                                </span>
+                              </Link>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-brand-emerald opacity-0 group-hover:opacity-100 transition-opacity">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                     </div>
                   </div>
                 </div>
-              </Link>
             ))}
           </div>
         </div>
