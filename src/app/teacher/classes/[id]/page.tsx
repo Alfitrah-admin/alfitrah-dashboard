@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function ClassSubjectsPage() {
   const params = useParams();
-  const classId = params.classId as string;
+  const id = params.id as string;
   const [classInfo, setClassInfo] = useState<any>(null);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [evaluations, setEvaluations] = useState<any[]>([]);
@@ -42,9 +42,9 @@ export default function ClassSubjectsPage() {
         }
 
         // Derive gradeName from slug e.g. "grade-4" -> "Grade 4"
-        const gradeName = classId.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const gradeName = id.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-        setClassInfo({ id: classId, name: gradeName });
+        setClassInfo({ id: id, name: gradeName });
         setSubjects(assignedSubjects);
 
         const { data: studentsData } = await supabase.from('students').select('*').ilike('grade', `${gradeName}%`);
@@ -64,7 +64,7 @@ export default function ClassSubjectsPage() {
     };
 
     fetchClassData();
-  }, [classId]);
+  }, [id]);
 
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading class data...</div>;
@@ -96,7 +96,7 @@ export default function ClassSubjectsPage() {
           const isComplete = progress === 100;
 
           return (
-            <Link href={`/teacher/classes/${classId}/${encodeURIComponent(subject)}`} key={subject}>
+            <Link href={`/teacher/classes/${id}/${encodeURIComponent(subject)}`} key={subject}>
               <div className={`glass-card p-6 h-full flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-lg ${isComplete ? 'border-brand-emerald/30 bg-brand-emerald/5' : 'hover:border-primary/30'}`}>
                 <div>
                   <div className="flex justify-between items-start mb-4">

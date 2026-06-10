@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 const SUBJECT_CRITERIA: Record<string, string[]> = {
@@ -38,10 +39,12 @@ function slugToText(slug: string) {
   return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export default function SubjectEvaluationPage({ params }: { params: { classId: string; subject: string } }) {
-  const { classId: id, subject } = params; // id = 'grade-4', subject = 'maths' or 'computer-science'
-  const gradeName = useMemo(() => slugToText(id), [id]); // "Grade 4"
-  const subjectName = useMemo(() => slugToText(subject), [subject]); // "Maths" or "Computer Science"
+export default function SubjectEvaluationPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const subject = params.subject as string;
+  const gradeName = useMemo(() => id ? slugToText(id) : '', [id]);
+  const subjectName = useMemo(() => subject ? slugToText(subject) : '', [subject]);
   const criteria = SUBJECT_CRITERIA[subjectName] ?? SUBJECT_CRITERIA['Default'];
 
   const [students, setStudents] = useState<any[]>([]);
