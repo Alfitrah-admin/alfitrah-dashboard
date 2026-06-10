@@ -2,8 +2,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase'; // adjust path if your supabase client is elsewhere
 
+// Subject criteria mapping
 const SUBJECT_CRITERIA: Record<string, string[]> = {
   Maths: [
     'Number Understanding',
@@ -36,6 +37,7 @@ const SUBJECT_CRITERIA: Record<string, string[]> = {
 };
 
 function slugToText(slug: string) {
+  if (!slug) return '';
   return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -43,17 +45,17 @@ export default function SubjectEvaluationPage() {
   const params = useParams();
   const id = params.id as string;
   const subject = params.subject as string;
-  const gradeName = useMemo(() => id ? slugToText(id) : '', [id]);
-  const subjectName = useMemo(() => subject ? slugToText(subject) : '', [subject]);
+  const gradeName = useMemo(() => slugToText(id), [id]); // "Grade 4"
+  const subjectName = useMemo(() => slugToText(subject), [subject]); // "Maths" or "Computer Science"
   const criteria = SUBJECT_CRITERIA[subjectName] ?? SUBJECT_CRITERIA['Default'];
 
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-  const [scores, setScores] = useState<Record<string,string>>({});
+  const [scores, setScores] = useState<Record<string, string>>({});
   const [remarks, setRemarks] = useState('');
   const [saving, setSaving] = useState(false);
-  const [cycle, setCycle] = useState<string>('Jun-Jul 2026');
+  const [cycle, setCycle] = useState<string>('Jun-Jul 2026'); // adapt to your cycle logic
 
   useEffect(() => {
     let mounted = true;
@@ -90,7 +92,7 @@ export default function SubjectEvaluationPage() {
       try {
         const { data, error } = await supabase
           .from('evaluations')
-          .select('grade_value, comments')
+          .select('grade_value, teacher_remarks')
           .eq('student_id', selectedStudent.id)
           .eq('subject', subjectName)
           .eq('reporting_cycle', cycle)
@@ -99,7 +101,7 @@ export default function SubjectEvaluationPage() {
         if (data) {
           const existing = typeof data.grade_value === 'string' ? JSON.parse(data.grade_value) : data.grade_value;
           setScores(existing || {});
-          setRemarks(data.comments || '');
+          setRemarks(data.teacher_remarks || '');
         }
       } catch (e) {
         // ignore not found
@@ -117,34 +119,15 @@ export default function SubjectEvaluationPage() {
     setSaving(true);
     const scoresObj = scores;
     try {
-      // Find if we already have one
-      const { data: existingData } = await supabase
-        .from('evaluations')
-        .select('id')
-        .eq('student_id', selectedStudent.id)
-        .eq('subject', subjectName)
-        .eq('reporting_cycle', cycle)
-        .single();
-        
       const payload = {
         student_id: selectedStudent.id,
-        student_name: selectedStudent.name,
         grade: gradeName,
         subject: subjectName,
         reporting_cycle: cycle,
-        grade_value: scoresObj,
-        comments: remarks,
-        status: 'submitted'
+        grade_value: scoresObj, // if your DB expects text, stringify: JSON.stringify(scoresObj)
+        teacher_remarks: remarks
       };
-      
-      let error;
-      if (existingData) {
-        const { error: updateError } = await supabase.from('evaluations').update(payload).eq('id', existingData.id);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase.from('evaluations').insert([payload]);
-        error = insertError;
-      }
+      const { error } = await supabase.from('evaluations').insert([payload]);
       if (error) throw error;
       alert('Saved successfully');
     } catch (err) {
@@ -158,12 +141,7 @@ export default function SubjectEvaluationPage() {
   return (
     <div style={{ display: 'flex', gap: 24, padding: 24 }}>
       <div style={{ width: 320, background: 'var(--color-background-secondary)', borderRadius: 12, padding: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          <Link href={`/teacher/classes/${id}`} style={{ marginRight: 12, color: 'var(--color-text-tertiary)', textDecoration: 'none' }}>
-            ← Back
-          </Link>
-          <h3 style={{ margin: 0 }}>{subjectName} — {gradeName}</h3>
-        </div>
+        <h3 style={{ margin: '8px 12px' }}>{subjectName} — {gradeName}</h3>
         <div style={{ maxHeight: '64vh', overflow: 'auto' }}>
           {loading ? <div style={{ padding: 20 }}>Loading students...</div> :
             students.length === 0 ? <div style={{ padding: 20 }}>No students found in this grade.</div> :
