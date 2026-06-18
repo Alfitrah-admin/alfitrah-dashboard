@@ -33,6 +33,18 @@ const SUBJECT_CRITERIA: Record<string, string[]> = {
     'Online Safety & Ethics',
     'Basic Problem Solving/Logic'
   ],
+  English: [
+    'Reading Fluency',
+    'Pronunciation',
+    'Vocabulary Usage',
+    'Handwriting',
+    'Spellings',
+    'Sentence Formation',
+    'Listening Skills',
+    'Speaking Confidence',
+    'Grammar Understanding',
+    'Creative Writing'
+  ],
   Default: ['General Performance', 'Participation', 'Behavior']
 };
 
