@@ -6,6 +6,14 @@ import { getDB, initDB, Student, Evaluation } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { getIndicatorsForSubject, GRADES } from '@/lib/constants';
 
+const gradeColors: Record<string, string> = {
+  A: '#22c55e',
+  B: '#3b82f6',
+  C: '#eab308',
+  D: '#f97316',
+  E: '#ef4444'
+};
+
 function EvaluateContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -18,6 +26,7 @@ function EvaluateContent() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [evaluationData, setEvaluationData] = useState<{ grades: Record<string, string>, comments: string }>({ grades: {}, comments: '' });
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
 
   const criteria = getIndicatorsForSubject(subjectName || "");
@@ -27,7 +36,6 @@ function EvaluateContent() {
 
     const { data: studentsData } = await supabase.from('students').select('*').ilike('grade', `${gradeName}%`);
     if (studentsData) {
-      // mapping snake_case from db if needed, assuming Student interface has admissionId etc.
       setStudents(studentsData.map(s => ({
         ...s,
         admissionId: s.admission_id || s.admissionId
@@ -61,6 +69,7 @@ function EvaluateContent() {
 
   const handleStudentClick = (student: Student) => {
     setSelectedStudent(student);
+    setSaved(false);
     const existingEval = evaluations.find(e => 
       e.student_id === student.id && 
       e.subject === subjectName && 
@@ -71,10 +80,8 @@ function EvaluateContent() {
     if (existingEval) {
       setEvaluationData({ grades: existingEval.grade_value || existingEval.grades || {}, comments: existingEval.comments || '' });
     } else {
-      // Init default grades
-      const initialGrades: Record<string, string> = {};
-      criteria.forEach(c => initialGrades[c] = 'B');
-      setEvaluationData({ grades: initialGrades, comments: '' });
+      // Init default grades empty
+      setEvaluationData({ grades: {}, comments: '' });
     }
   };
 
@@ -82,6 +89,7 @@ function EvaluateContent() {
     if (!selectedStudent || !className || !subjectName || !cycleName) return;
 
     setSaving(true);
+    setSaved(false);
     setActionMessage({ type: '', text: '' });
 
     const evalData = {
@@ -117,12 +125,16 @@ function EvaluateContent() {
     if (err) {
       setActionMessage({ type: 'error', text: 'Failed to save evaluation.' });
     } else {
-      setActionMessage({ type: 'success', text: `Evaluation ${status === 'submitted' ? 'submitted' : 'saved'} successfully!` });
+      setSaved(true);
       fetchEvaluationsAndStudents();
       setTimeout(() => {
-        setActionMessage({ type: '', text: '' });
+        setSaved(false);
       }, 3000);
     }
+  };
+
+  const onSelectScore = (criterion: string, letter: string) => {
+    setEvaluationData(prev => ({ ...prev, grades: { ...prev.grades, [criterion]: letter } }));
   };
 
   if (!className || !subjectName || !cycleName) return null;
@@ -196,34 +208,78 @@ function EvaluateContent() {
         <div className="lg:col-span-2 glass-card p-6 h-[70vh] flex flex-col">
           {selectedStudent ? (
             <>
-              <div className="border-b border-slate-100 pb-4 mb-6">
-                <h3 className="text-xl font-bold text-slate-800">Evaluating: {selectedStudent.name}</h3>
-                <p className="text-slate-500 text-sm">{selectedStudent.admissionId}</p>
+              <div className="border-b border-slate-100 pb-4 mb-6 flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800">Evaluating: {selectedStudent.name}</h3>
+                  <p className="text-slate-500 text-sm">ID: {selectedStudent.admissionId}</p>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto pr-2 space-y-6">
                 <div>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {[
+                      { letter: 'A', label: 'Excellent', color: '#22c55e' },
+                      { letter: 'B', label: 'Good', color: '#3b82f6' },
+                      { letter: 'C', label: 'Average', color: '#eab308' },
+                      { letter: 'D', label: 'Needs Improvement', color: '#f97316' },
+                      { letter: 'E', label: 'Poor', color: '#ef4444' }
+                    ].map(({ letter, label, color }) => (
+                      <div key={letter} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: 6, background: color, display: 'flex', alignItems: 'center', justifyItems: 'center', color: 'white', fontWeight: 700, fontSize: 12, textAlign: 'center', paddingLeft: 8 }}>{letter}</div>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+
                   <h4 className="font-semibold text-slate-800 mb-4">Criteria Grades</h4>
-                  <div className="space-y-4">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     {criteria.map(criterion => (
-                      <div key={criterion} className="flex justify-between items-center bg-slate-50/50 p-3 rounded-xl border border-slate-100">
-                        <span className="text-sm font-medium text-slate-700">{criterion}</span>
-                        <select 
-                          value={evaluationData.grades[criterion] || 'B'}
-                          onChange={e => setEvaluationData(prev => ({ ...prev, grades: { ...prev.grades, [criterion]: e.target.value } }))}
-                          className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-brand-emerald focus:border-brand-emerald"
-                        >
-                          {GRADES.map(g => (
-                            <option key={g.value} value={g.value}>{g.value}</option>
+                      <div
+                        key={criterion}
+                        style={{
+                          padding: '16px',
+                          borderRadius: 12,
+                          border: '1px solid #e2e8f0',
+                          background: 'white',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: 10, color: '#1e293b', fontSize: 14 }}>
+                          {criterion}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {['A','B','C','D','E'].map(letter => (
+                            <button
+                              key={letter}
+                              onClick={() => onSelectScore(criterion, letter)}
+                              style={{
+                                padding: '8px 14px',
+                                borderRadius: 8,
+                                border: evaluationData.grades[criterion] === letter
+                                  ? `2px solid ${gradeColors[letter]}`
+                                  : '1px solid #e2e8f0',
+                                background: evaluationData.grades[criterion] === letter
+                                  ? gradeColors[letter]
+                                  : '#f8fafc',
+                                color: evaluationData.grades[criterion] === letter ? 'white' : '#64748b',
+                                fontWeight: evaluationData.grades[criterion] === letter ? 700 : 400,
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {letter}
+                            </button>
                           ))}
-                        </select>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div>
-                  <h4 className="font-semibold text-slate-800 mb-3">Teacher Comments</h4>
+                <div style={{ marginTop: 18 }}>
+                  <h4 className="font-semibold text-slate-800 mb-3">Remarks & Feedback</h4>
                   <textarea 
                     value={evaluationData.comments}
                     onChange={e => setEvaluationData(prev => ({ ...prev, comments: e.target.value }))}
@@ -233,21 +289,46 @@ function EvaluateContent() {
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-slate-100 flex justify-end space-x-3 mt-auto">
-                <button 
-                  onClick={() => handleSaveEvaluation('draft')}
-                  disabled={saving}
-                  className="px-6 py-2.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-xl font-medium transition-colors disabled:opacity-50"
-                >
-                  Save as Draft
-                </button>
-                <button 
+              {saved && (
+                <div style={{ marginTop: 16, padding: '10px 16px', background: '#dcfce7', border: '1px solid #22c55e', borderRadius: 8, color: '#15803d', fontWeight: 600, marginBottom: 12 }}>
+                  ✅ Evaluation saved successfully!
+                </div>
+              )}
+
+              <div style={{ marginTop: 20, display: 'flex', gap: 12, alignItems: 'center', paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+                <button
                   onClick={() => handleSaveEvaluation('submitted')}
                   disabled={saving}
-                  className="px-6 py-2.5 bg-brand-emerald text-white hover:bg-emerald-600 rounded-xl font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center"
+                  style={{
+                    padding: '12px 32px',
+                    background: saving ? '#94a3b8' : '#22c55e',
+                    color: 'white',
+                    borderRadius: 10,
+                    border: 'none',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    fontWeight: 700,
+                    fontSize: 16,
+                    boxShadow: '0 2px 8px rgba(34,197,94,0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
                 >
-                  {saving && <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
-                  {saving ? 'Saving...' : 'Submit Final'}
+                  {saving ? '⏳ Saving...' : '✅ Submit Evaluation'}
+                </button>
+              
+                <button
+                  onClick={() => setEvaluationData({ grades: {}, comments: '' })}
+                  style={{
+                    padding: '12px 24px',
+                    background: 'transparent',
+                    borderRadius: 10,
+                    border: '1px solid #e2e8f0',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    fontSize: 14,
+                    color: '#64748b'
+                  }}
+                >
+                  🔄 Reset
                 </button>
               </div>
             </>
