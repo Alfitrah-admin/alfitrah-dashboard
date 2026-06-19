@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { Student, Evaluation } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { useStudent } from './context';
 
 // --- MOCK DATA FOR CHARTS AND EXTENDED FEATURES ---
 const subjectRadarData = [
@@ -53,30 +54,13 @@ const duas = ['Dua for Waking Up', 'Dua for Sleeping', 'Dua before Meals', 'Dua 
 export default function ParentDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
-  const [student, setStudent] = useState<Student | null>(null);
+  const { student, isLoading } = useStudent();
 
-  const fetchChildData = async () => {
-    const admissionId = localStorage.getItem('parentAdmissionId');
-    if (!admissionId) {
-      window.location.href = '/';
-      return;
-    }
-
-    const { data: studentsData } = await supabase.from('students').select('*').eq('admission_id', admissionId).limit(1);
-    
-    if (studentsData && studentsData.length > 0) {
-      const dbStudent = studentsData[0];
-      const selectedStudentId = dbStudent.id;
-      
-      setStudent({
-        ...dbStudent,
-        admissionId: dbStudent.admission_id || dbStudent.admissionId,
-        parentName: dbStudent.parent_name || dbStudent.parentName,
-        parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
-      } as Student);
-
+  useEffect(() => {
+    const fetchEvals = async () => {
+      if (!student) return;
       // fetch all evaluations, not just submitted, since some teachers might just insert directly
-      const { data: evalsData } = await supabase.from('evaluations').select('*').eq('student_id', selectedStudentId);
+      const { data: evalsData } = await supabase.from('evaluations').select('*').eq('student_id', student.id);
       
       if (evalsData) {
         setEvaluations(evalsData.map(e => {
@@ -95,12 +79,10 @@ export default function ParentDashboard() {
           };
         }) as any[]);
       }
-    }
-  };
+    };
+    fetchEvals();
+  }, [student]);
 
-  useEffect(() => {
-    fetchChildData();
-  }, []);
 
   const getOverallProgress = (grades: Record<string, string> = {}) => {
     const values = Object.values(grades);
@@ -111,11 +93,11 @@ export default function ParentDashboard() {
     values.forEach(v => sum += map[v] || 75);
     const avg = sum / values.length;
     
-    if (avg >= 90) return { pct: Math.round(avg), letter: 'A+', color: 'bg-emerald-500', text: 'text-emerald-500' };
-    if (avg >= 80) return { pct: Math.round(avg), letter: 'A', color: 'bg-green-500', text: 'text-green-500' };
-    if (avg >= 70) return { pct: Math.round(avg), letter: 'B', color: 'bg-blue-500', text: 'text-blue-500' };
-    if (avg >= 60) return { pct: Math.round(avg), letter: 'C', color: 'bg-orange-500', text: 'text-orange-500' };
-    return { pct: Math.round(avg), letter: 'D', color: 'bg-red-500', text: 'text-red-500' };
+    if (avg >= 90) return { pct: Math.round(avg), letter: 'A', color: 'bg-emerald-500', text: 'text-emerald-500' };
+    if (avg >= 80) return { pct: Math.round(avg), letter: 'B', color: 'bg-blue-500', text: 'text-blue-500' };
+    if (avg >= 70) return { pct: Math.round(avg), letter: 'C', color: 'bg-orange-500', text: 'text-orange-500' };
+    if (avg >= 60) return { pct: Math.round(avg), letter: 'D', color: 'bg-red-500', text: 'text-red-500' };
+    return { pct: Math.round(avg), letter: 'E', color: 'bg-red-700', text: 'text-red-700' };
   };
 
   const getSchoolOverall = () => {
@@ -124,16 +106,16 @@ export default function ParentDashboard() {
     evaluations.forEach(ev => totalScore += getOverallProgress(ev.grades).pct);
     const avg = totalScore / evaluations.length;
     
-    if (avg >= 90) return { letter: 'A+', color: 'bg-emerald-500' };
-    if (avg >= 80) return { letter: 'A', color: 'bg-green-500' };
-    if (avg >= 70) return { letter: 'B', color: 'bg-blue-500' };
-    if (avg >= 60) return { letter: 'C', color: 'bg-orange-500' };
-    return { letter: 'D', color: 'bg-red-500' };
+    if (avg >= 90) return { letter: 'A', color: 'bg-emerald-500' };
+    if (avg >= 80) return { letter: 'B', color: 'bg-blue-500' };
+    if (avg >= 70) return { letter: 'C', color: 'bg-orange-500' };
+    if (avg >= 60) return { letter: 'D', color: 'bg-red-500' };
+    return { letter: 'E', color: 'bg-red-700' };
   };
 
   const overall = getSchoolOverall();
 
-  if (!student) return <div className="p-8 text-center text-slate-500">Loading Portal...</div>;
+  if (isLoading || !student) return <div className="p-8 text-center text-slate-500">Loading Portal...</div>;
 
   return (
     <div className="space-y-8 pb-12 max-w-6xl mx-auto">

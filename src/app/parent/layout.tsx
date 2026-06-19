@@ -1,49 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { Student } from '@/lib/store';
-import { supabase } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
+import { StudentProvider, useStudent } from './context';
 
-export default function ParentLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router = useRouter();
+function ParentLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [student, setStudent] = useState<Student | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStudent = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.replace('/');
-        setIsLoading(false);
-        return;
-      }
-      
-      const { data } = await supabase.from('students').select('*').limit(1);
-      if (data && data.length > 0) {
-        const dbStudent = data[0];
-        setStudent({
-          ...dbStudent,
-          admissionId: dbStudent.admission_id || dbStudent.admissionId,
-          parentName: dbStudent.parent_name || dbStudent.parentName,
-          parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
-        } as Student);
-      } else {
-        router.replace('/');
-      }
-      setIsLoading(false);
-    };
-
-    fetchStudent();
-  }, [router, pathname]);
-
-
+  const { student, isLoading, logout } = useStudent();
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
@@ -57,10 +20,7 @@ export default function ParentLayout({
           <h2 className="text-xl font-bold text-slate-800 mb-2">No student found for this login</h2>
           <p className="text-slate-500 mb-6 text-sm">Please log in again or check your admission ID.</p>
           <button 
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.replace('/');
-            }}
+            onClick={logout}
             className="w-full bg-brand-emerald text-white font-medium py-3 rounded-xl hover:bg-emerald-600 transition-colors shadow-sm"
           >
             Back to Login
@@ -69,6 +29,7 @@ export default function ParentLayout({
       </div>
     );
   }
+
   return (
     <div className="min-h-screen flex bg-transparent">
       {/* Sidebar */}
@@ -103,10 +64,7 @@ export default function ParentLayout({
           </Link>
         </nav>
         <div className="p-4 mt-auto border-t border-white/40 pt-4">
-          <button onClick={async () => {
-            await supabase.auth.signOut();
-            router.replace('/');
-          }} className="w-full flex items-center space-x-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl font-medium transition-colors">
+          <button onClick={logout} className="w-full flex items-center space-x-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl font-medium transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
             <span>Log Out</span>
           </button>
@@ -133,5 +91,13 @@ export default function ParentLayout({
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ParentLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <StudentProvider>
+      <ParentLayoutContent>{children}</ParentLayoutContent>
+    </StudentProvider>
   );
 }
