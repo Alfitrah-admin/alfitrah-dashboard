@@ -45,6 +45,95 @@ const SUBJECT_CRITERIA: Record<string, string[]> = {
     'Grammar Understanding',
     'Creative Writing'
   ],
+  Malayalam: [
+    "Letter Recognition",
+    "Reading Ability",
+    "Pronunciation",
+    "Vocabulary Understanding",
+    "Writing Neatness",
+    "Dictation",
+    "Sentence Reading",
+    "Oral Communication"
+  ],
+  Hindi: [
+    "Letter Recognition",
+    "Reading Ability",
+    "Pronunciation",
+    "Vocabulary Understanding",
+    "Writing Neatness",
+    "Dictation",
+    "Sentence Reading",
+    "Oral Communication"
+  ],
+  Arabic: [
+    "Letter Recognition",
+    "Reading Fluency",
+    "Pronunciation",
+    "Writing Skills",
+    "Vocabulary Understanding",
+    "Recitation Skills",
+    "Memorisation",
+    "Listening Skills",
+    "Islamic Vocabulary Usage"
+  ],
+  Quran: [
+    "Letter Recognition",
+    "Tajweed Basics",
+    "Pronunciation Accuracy",
+    "Fluency in Recitation",
+    "Memorisation Progress",
+    "Listening and Repetition",
+    "Surah Recitation Confidence",
+    "Dua Memorisation",
+    "Daily Revision Consistency",
+    "Respectful Quran Handling"
+  ],
+  "Islamic Studies": [
+    "Understanding Islamic Values",
+    "Daily Dua Knowledge",
+    "Salah Awareness",
+    "Islamic Manners and Etiquettes",
+    "Prophet Stories Understanding",
+    "Participation in Islamic Activities",
+    "Moral Behaviour",
+    "Classroom Discipline",
+    "Respect Towards Teachers and Friends",
+    "Islamic Vocabulary Understanding"
+  ],
+  EVS: [
+    "Concept Understanding",
+    "Observation Skills",
+    "Environmental Awareness",
+    "Activity Participation",
+    "Diagram Understanding",
+    "General Knowledge",
+    "Curiosity and Questioning",
+    "Oral Responses"
+  ],
+  Science: [
+    "Concept Understanding",
+    "Observation Skills",
+    "Scientific Thinking",
+    "Experiment Participation",
+    "Practical Application",
+    "Diagram Understanding",
+    "Problem Solving",
+    "Environmental Awareness",
+    "Curiosity and Inquiry",
+    "General Scientific Knowledge"
+  ],
+  "Social Studies": [
+    "Concept Understanding",
+    "Map Reading Skills",
+    "Historical Awareness",
+    "Civic Understanding",
+    "Environmental Awareness",
+    "Participation in Discussions",
+    "General Knowledge",
+    "Critical Thinking",
+    "Respect for Diversity",
+    "Project and Activity Participation"
+  ],
   Default: ['General Performance', 'Participation', 'Behavior']
 };
 
