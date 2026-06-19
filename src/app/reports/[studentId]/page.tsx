@@ -14,6 +14,9 @@ export default function StudentReportCard() {
   
   const [student, setStudent] = useState<Student | null>(null);
   const [evaluations, setEvaluations] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  
   const contentRef = useRef<HTMLDivElement>(null);
   const handlePrint = useReactToPrint({ contentRef });
   
@@ -44,13 +47,56 @@ export default function StudentReportCard() {
             };
           }));
         }
+      } else {
+        setError('Student not found');
       }
+      setIsLoading(false);
     };
     load();
   }, [studentId]);
 
-  if (!student) {
-    return <div className="p-10 text-center text-slate-500">Loading Report Card...</div>;
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-slate-500 font-medium">Loading Report Card...</div>;
+  }
+
+  if (error || !student) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-slate-100">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Report Not Available</h2>
+          <p className="text-slate-500 mb-6 text-sm">{error || 'Student not found'}</p>
+          <button 
+            onClick={() => router.back()}
+            className="w-full bg-slate-800 text-white font-medium py-3 rounded-xl hover:bg-slate-700 transition-colors shadow-sm"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (evaluations.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-slate-100">
+          <div className="w-16 h-16 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">No Evaluations Yet</h2>
+          <p className="text-slate-500 mb-6 text-sm">No evaluations found for this cycle. Please check back after teacher submission.</p>
+          <button 
+            onClick={() => router.back()}
+            className="w-full bg-slate-800 text-white font-medium py-3 rounded-xl hover:bg-slate-700 transition-colors shadow-sm"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const getOverallProgress = (grades: Record<string, string> = {}) => {
