@@ -14,7 +14,7 @@ export default function LoginPage() {
 
   const handleRoleChange = (r: 'admin' | 'teacher' | 'parent') => {
     setRole(r);
-    setEmail(`${r}@alfitrah.com`);
+    setEmail(r === 'parent' ? '' : `${r}@alfitrah.com`);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -23,35 +23,54 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.session) {
-        // Now check if this user actually has the selected role in our users metadata or just based on their email for now
-        // But the user requested: "Ensure you are searching the users table for the matching email AND the matching role"
-        // "Ensure that there is NO case-sensitivity (e.g., Teacher vs teacher) causing the block."
-        const { data: userData, error: userError } = await supabase
-          .from('users')
+      if (role === 'parent') {
+        const admissionId = email; // For parent, 'email' state is actually 'admission_id'
+        
+        const { data: student, error: fetchError } = await supabase
+          .from('students')
           .select('*')
-          .ilike('email', email)
-          .ilike('role', role)
+          .eq('admission_id', admissionId)
           .maybeSingle();
 
-        if (userError || !userData) {
-          // If the user is not found in the users table with this role, log them out and reject
-          await supabase.auth.signOut();
-          throw new Error("Invalid role selected for this account");
+        if (fetchError || !student) {
+          throw new Error("Invalid Admission ID or Password");
         }
 
-        if (role === 'admin') router.push('/admin');
-        else if (role === 'teacher') router.push('/teacher');
-        else if (role === 'parent') router.push('/parent');
+        const validPassword = student.parent_password || `parent${admissionId}`;
+
+        if (password !== validPassword) {
+          throw new Error("Invalid Admission ID or Password");
+        }
+
+        // Successfully authenticated as parent
+        localStorage.setItem('parentAdmissionId', admissionId);
+        router.push('/parent');
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data.session) {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .ilike('email', email)
+            .ilike('role', role)
+            .maybeSingle();
+
+          if (userError || !userData) {
+            await supabase.auth.signOut();
+            throw new Error("Invalid role selected for this account");
+          }
+
+          if (role === 'admin') router.push('/admin');
+          else if (role === 'teacher') router.push('/teacher');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
@@ -95,9 +114,11 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Email Address</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                {role === 'parent' ? 'Admission ID' : 'Email Address'}
+              </label>
               <input
-                type="email"
+                type={role === 'parent' ? 'text' : 'email'}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white/50"

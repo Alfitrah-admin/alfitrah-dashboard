@@ -56,9 +56,13 @@ export default function ParentDashboard() {
   const [student, setStudent] = useState<Student | null>(null);
 
   const fetchChildData = async () => {
-    // Attempt to get the logged-in parent's child (for demo we can just take the first student if no matching metadata)
-    // Or check if there's a specific student ID passed
-    const { data: studentsData } = await supabase.from('students').select('*').limit(1);
+    const admissionId = localStorage.getItem('parentAdmissionId');
+    if (!admissionId) {
+      window.location.href = '/';
+      return;
+    }
+
+    const { data: studentsData } = await supabase.from('students').select('*').eq('admission_id', admissionId).limit(1);
     
     if (studentsData && studentsData.length > 0) {
       const dbStudent = studentsData[0];
@@ -71,15 +75,25 @@ export default function ParentDashboard() {
         parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
       } as Student);
 
-      const { data: evalsData } = await supabase.from('evaluations').select('*').eq('student_id', selectedStudentId).eq('status', 'submitted');
+      // fetch all evaluations, not just submitted, since some teachers might just insert directly
+      const { data: evalsData } = await supabase.from('evaluations').select('*').eq('student_id', selectedStudentId);
       
       if (evalsData) {
-        setEvaluations(evalsData.map(e => ({
-          ...e,
-          studentId: e.student_id,
-          studentName: e.student_name,
-          reportingCycle: e.reporting_cycle,
-        })) as any[]);
+        setEvaluations(evalsData.map(e => {
+          let parsedGrades = e.grade_value;
+          try {
+            if (typeof parsedGrades === 'string') parsedGrades = JSON.parse(parsedGrades);
+          } catch(err) {}
+
+          return {
+            ...e,
+            grades: parsedGrades || {},
+            comments: e.teacher_remarks || e.comments || '',
+            studentId: e.student_id,
+            studentName: e.student_name,
+            reportingCycle: e.reporting_cycle,
+          };
+        }) as any[]);
       }
     }
   };

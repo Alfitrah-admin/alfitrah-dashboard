@@ -30,6 +30,7 @@ export default function StudentsAdmin() {
         admissionId: d.admission_id,
         parentName: d.parent_name,
         parentPhone: d.parent_phone,
+        parentPassword: d.parent_password,
         status: d.status
       }));
       setStudents(mapped as Student[]);
@@ -65,11 +66,11 @@ export default function StudentsAdmin() {
   const handleSave = async () => {
     const nameToSave = formData.name;
     const admissionIdToSave = formData.admissionId || (formData as any).admission_id;
-    const parentPhoneToSave = formData.parentPhone || (formData as any).parent_phone;
+    const parentPhoneToSave = formData.parentPhone || (formData as any).parent_phone || null;
+    const parentPasswordToSave = formData.parentPassword || (formData as any).parent_password || null;
 
     if (!nameToSave) return alert("Full Name is required");
     if (!admissionIdToSave) return alert("Admission ID is required");
-    if (!parentPhoneToSave) return alert("Parent Phone Number is required");
 
     setSaving(true);
 
@@ -78,8 +79,9 @@ export default function StudentsAdmin() {
       admission_id: admissionIdToSave,
       name: nameToSave,
       grade: formData.grade,
-      parent_name: formData.parentName || (formData as any).parent_name,
+      parent_name: formData.parentName || (formData as any).parent_name || null,
       parent_phone: parentPhoneToSave,
+      parent_password: parentPasswordToSave,
       status: formData.status
     };
 
@@ -264,7 +266,7 @@ export default function StudentsAdmin() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Parent Phone Number <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Parent Phone Number</label>
                   <input
                     type="text"
                     value={formData.parentPhone || ''}
