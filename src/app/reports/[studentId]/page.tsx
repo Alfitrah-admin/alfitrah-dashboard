@@ -22,35 +22,44 @@ export default function StudentReportCard() {
   
   useEffect(() => {
     const load = async () => {
-      const { data: studentsData } = await supabase.from('students').select('*').eq('id', studentId).limit(1);
-      if (studentsData && studentsData.length > 0) {
-        const dbStudent = studentsData[0];
-        setStudent({
-          ...dbStudent,
-          admissionId: dbStudent.admission_id || dbStudent.admissionId,
-          parentName: dbStudent.parent_name || dbStudent.parentName,
-          parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
-        } as Student);
-        
-        const { data: evalsData } = await supabase.from('evaluations').select('*').eq('student_id', studentId);
-        if (evalsData) {
-          setEvaluations(evalsData.map(e => {
-            let parsedGrades = e.grade_value;
-            try {
-              if (typeof parsedGrades === 'string') parsedGrades = JSON.parse(parsedGrades);
-            } catch(err) {}
-            return {
-              ...e,
-              grades: parsedGrades || {},
-              comments: e.teacher_remarks || e.comments || '',
-              reportingCycle: e.reporting_cycle,
-            };
-          }));
+      try {
+        const { data: studentsData, error: stuError } = await supabase.from('students').select('*').eq('student_id', studentId).limit(1);
+        if (studentsData && studentsData.length > 0) {
+          const dbStudent = studentsData[0];
+          setStudent({
+            ...dbStudent,
+            admissionId: dbStudent.admission_id || dbStudent.admissionId,
+            parentName: dbStudent.parent_name || dbStudent.parentName,
+            parentPhone: dbStudent.parent_phone || dbStudent.parentPhone,
+          } as Student);
+          
+          const { data: evalsData, error: evalsError } = await supabase.from('evaluations').select('*').eq('student_id', studentId);
+          if (evalsError) {
+            setError('Error fetching evaluations.');
+          } else if (evalsData) {
+            setEvaluations(evalsData.map(e => {
+              let parsedGrades = e.grade_value;
+              try {
+                if (typeof parsedGrades === 'string') parsedGrades = JSON.parse(parsedGrades);
+              } catch(err) {}
+              return {
+                ...e,
+                subject: e.subject,
+                grades: parsedGrades || {},
+                comments: e.teacher_remarks || e.comments || '',
+                reportingCycle: e.reporting_cycle,
+              };
+            }));
+          }
+        } else {
+          setError('Student not found');
         }
-      } else {
-        setError('Student not found');
+      } catch (err) {
+        console.error('Loading error:', err);
+        setError('An unexpected error occurred.');
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     load();
   }, [studentId]);

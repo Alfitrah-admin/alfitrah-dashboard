@@ -39,7 +39,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         setStudent({
           ...data,
-          id: data.id,
+          id: data.student_id || data.id,
           name: data.name,
           grade: data.grade,
           admissionId: data.admission_id || data.admissionId,
