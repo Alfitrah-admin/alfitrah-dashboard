@@ -166,6 +166,13 @@ export default function SubjectEvaluationPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [cycle, setCycle] = useState<string>('Jun-Jul 2026'); // adapt to your cycle logic
+  const [teacherEmail, setTeacherEmail] = useState<string>('');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setTeacherEmail(data.session.user.email);
+    });
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -237,7 +244,8 @@ export default function SubjectEvaluationPage() {
         subject: subjectName,
         reporting_cycle: cycle,
         grade_value: scoresObj,
-        teacher_remarks: remarks
+        teacher_remarks: remarks,
+        teacher_email: teacherEmail
       };
       
       const { data: existingData } = await supabase

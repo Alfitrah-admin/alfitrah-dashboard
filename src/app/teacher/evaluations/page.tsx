@@ -12,12 +12,14 @@ export default function EvaluationsPage() {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [activeCycle, setActiveCycle] = useState<string>("");
+  const [teacherEmail, setTeacherEmail] = useState<string>("");
 
   useEffect(() => {
     const fetchData = async () => {
       // Get session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      setTeacherEmail(session.user.email);
 
       const parseStringArray = (val: any) => {
         if (!val) return [];
@@ -104,10 +106,10 @@ export default function EvaluationsPage() {
 
   // Filter recent evaluations (teacher's own submitted evals)
   const recentEvaluations = evaluations.filter(e => 
-    teacher.subjectsAssigned?.includes(e.subject) &&
-    teacher.gradesAssigned?.includes(e.grade) &&
+    (e.teacher_email === teacherEmail || 
+    (teacher.subjectsAssigned?.includes(e.subject) && teacher.gradesAssigned?.includes(e.grade))) &&
     e.status === 'submitted'
-  ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  ).sort((a, b) => new Date(b.created_at || b.date || 0).getTime() - new Date(a.created_at || a.date || 0).getTime()).slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -174,7 +176,7 @@ export default function EvaluationsPage() {
                     Submitted
                   </span>
                   <p className="text-xs text-slate-400">
-                    {new Date(ev.date).toLocaleDateString()}
+                    {new Date(ev.created_at || ev.date || Date.now()).toLocaleDateString()}
                   </p>
                 </div>
               </div>

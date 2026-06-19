@@ -28,10 +28,15 @@ function EvaluateContent() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [actionMessage, setActionMessage] = useState({ type: '', text: '' });
+  const [teacherEmail, setTeacherEmail] = useState('');
 
   const criteria = getIndicatorsForSubject(subjectName || "");
 
   const fetchEvaluationsAndStudents = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setTeacherEmail(session.user.email);
+    }
     const gradeName = className ? className.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
 
     const { data: studentsData } = await supabase.from('students').select('*').ilike('grade', `${gradeName}%`);
@@ -100,6 +105,7 @@ function EvaluateContent() {
       reporting_cycle: cycleName,
       grade_value: evaluationData.grades,
       comments: evaluationData.comments,
+      teacher_email: teacherEmail,
       status
     };
 
