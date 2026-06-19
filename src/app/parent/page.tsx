@@ -54,6 +54,7 @@ const duas = ['Dua for Waking Up', 'Dua for Sleeping', 'Dua before Meals', 'Dua 
 export default function ParentDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<any | null>(null);
   const { student, isLoading } = useStudent();
 
   useEffect(() => {
@@ -228,9 +229,15 @@ export default function ParentDashboard() {
                           </div>
                           <div>
                             <h4 className="font-bold text-slate-800">{ev.subject}</h4>
-                            <p className="text-xs text-slate-500">Evaluated: {new Date(ev.date).toLocaleDateString()}</p>
+                            <p className="text-xs text-slate-500">Evaluated: {new Date(ev.date || ev.created_at || Date.now()).toLocaleDateString()}</p>
                           </div>
                         </div>
+                        <button 
+                          onClick={() => setSelectedEvaluation(ev)}
+                          className="text-brand-emerald hover:bg-brand-emerald/10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                        >
+                          View Detail
+                        </button>
                       </div>
                     );
                   })}
@@ -509,25 +516,72 @@ export default function ParentDashboard() {
                       <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2 block">{item.cycle}</span>
                       <h3 className="text-lg font-bold text-slate-800 mb-2">{item.title}</h3>
                       <p className="text-sm text-slate-600 mb-4 leading-relaxed">{item.desc}</p>
-                      <div className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M12 15l-2 5l9-9l-9-9l2 5l-10 4z"/></svg>
-                        {item.badge}
-                      </div>
+                      {item.badge && (
+                        <div className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M12 15l-2 5l9-9l-9-9l2 5l-10 4z"/></svg>
+                          {item.badge}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
 
-              {/* Start Node */}
-              <div className="relative flex items-center md:justify-center w-full mt-12">
-                <div className="absolute left-[-9px] md:left-1/2 md:-ml-2 w-4 h-4 rounded-full border-4 border-white bg-slate-300 z-10"></div>
-                <p className="pl-8 md:pl-0 text-sm font-bold text-slate-400 uppercase tracking-widest mt-8">Start of Records</p>
-              </div>
-
             </div>
           </div>
         )}
       </div>
+
+      {/* Modal for View Detail */}
+      {selectedEvaluation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
+            <div className="bg-brand-emerald/5 px-6 py-4 border-b border-brand-emerald/10 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">{selectedEvaluation.subject}</h3>
+                <p className="text-sm text-slate-500">{selectedEvaluation.reportingCycle}</p>
+              </div>
+              <button 
+                onClick={() => setSelectedEvaluation(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-1 gap-y-3">
+                {Object.entries(selectedEvaluation.grades || {}).map(([indicator, grade]) => {
+                  const g = String(grade);
+                  const color = g.includes('A') ? 'text-emerald-600' : g.includes('B') ? 'text-blue-600' : g.includes('C') ? 'text-orange-500' : 'text-red-500';
+                  return (
+                    <div key={indicator} className="flex justify-between items-center py-2 border-b border-slate-100 border-dashed last:border-0">
+                      <span className="text-sm font-medium text-slate-600">{indicator}</span>
+                      <span className={`text-sm font-bold ${color}`}>{g}</span>
+                    </div>
+                  );
+                })}
+                {Object.keys(selectedEvaluation.grades || {}).length === 0 && (
+                  <p className="text-center text-slate-500 py-4">No indicators graded.</p>
+                )}
+              </div>
+              {selectedEvaluation.comments && (
+                <div className="mt-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Teacher Remarks</h4>
+                  <p className="text-sm text-slate-700 italic">"{selectedEvaluation.comments}"</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+              <button 
+                onClick={() => setSelectedEvaluation(null)}
+                className="bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-medium hover:bg-slate-700 transition-colors shadow-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
