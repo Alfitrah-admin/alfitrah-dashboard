@@ -21,6 +21,8 @@ export default function StudentReportCard() {
   const handlePrint = useReactToPrint({ contentRef });
   
   useEffect(() => {
+    if (!studentId) return; // Critical: Wait for Next.js to finish route param hydration!
+
     const load = async () => {
       try {
         const { data: studentsData, error: stuError } = await supabase.from('students').select('*').eq('student_id', studentId).limit(1);
@@ -66,45 +68,26 @@ export default function StudentReportCard() {
   }, [studentId]);
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-slate-500 font-medium">Loading Report Card...</div>;
-  }
-
-  if (error || !student) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-slate-100">
-          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-          </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Report Not Available</h2>
-          <p className="text-slate-500 mb-6 text-sm">{error || 'Student not found'}</p>
-          <button 
-            onClick={() => router.back()}
-            className="w-full bg-slate-800 text-white font-medium py-3 rounded-xl hover:bg-slate-700 transition-colors shadow-sm"
-          >
-            Back to Dashboard
-          </button>
-        </div>
+      <div style={{ padding: 40, textAlign: 'center', fontFamily: 'sans-serif' }}>
+        <div className="spinner" style={{ margin: '20px auto', width: 40, height: 40, border: '4px solid #f3f3f3', borderTop: '4px solid #22c55e', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <h3>Loading Report Card...</h3>
+        <p style={{ color: '#64748b' }}>Fetching results from database</p>
       </div>
     );
   }
 
-  if (evaluations.length === 0) {
+  if (error || !student || evaluations.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md w-full border border-slate-100">
-          <div className="w-16 h-16 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-          </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">No Evaluations Yet</h2>
-          <p className="text-slate-500 mb-6 text-sm">No evaluations found for this cycle. Please check back after teacher submission.</p>
-          <button 
-            onClick={() => router.back()}
-            className="w-full bg-slate-800 text-white font-medium py-3 rounded-xl hover:bg-slate-700 transition-colors shadow-sm"
-          >
-            Back to Dashboard
-          </button>
-        </div>
+      <div style={{ padding: '60px 20px', textAlign: 'center', maxWidth: 500, margin: '0 auto', fontFamily: 'sans-serif' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
+        <h2>No Evaluation Records Drafted</h2>
+        <p style={{ color: '#64748b', lineHeight: 1.5, marginBottom: 24 }}>
+          This student's evaluation records haven't been published for this cycle yet. Once academic or Islamic studies teachers submit their scores, they will instantly appear here.
+        </p>
+        <button onClick={() => window.location.href = '/parent'} style={{ padding: '12px 24px', background: '#22c55e', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+          Return to Parent Dashboard
+        </button>
       </div>
     );
   }
