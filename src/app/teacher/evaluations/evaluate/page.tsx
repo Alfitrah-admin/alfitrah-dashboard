@@ -99,14 +99,11 @@ function EvaluateContent() {
 
     const evalData = {
       student_id: selectedStudent.id,
-      student_name: selectedStudent.name,
       subject: subjectName,
       grade: className,
       reporting_cycle: cycleName,
       grade_value: evaluationData.grades,
-      comments: evaluationData.comments,
-      teacher_email: teacherEmail,
-      status
+      teacher_remarks: evaluationData.comments
     };
 
     const existingEval = evaluations.find(e => 
@@ -129,10 +126,15 @@ function EvaluateContent() {
     setSaving(false);
 
     if (err) {
+      console.error("Save error:", err);
       setActionMessage({ type: 'error', text: 'Failed to save evaluation.' });
     } else {
       setSaved(true);
-      fetchEvaluationsAndStudents();
+      try {
+        await fetchEvaluationsAndStudents();
+      } catch (e) {
+        console.error("Secondary refresh failed:", e);
+      }
       setTimeout(() => {
         setSaved(false);
       }, 3000);

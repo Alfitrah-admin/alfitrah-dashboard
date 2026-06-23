@@ -244,8 +244,7 @@ export default function SubjectEvaluationPage() {
         subject: subjectName,
         reporting_cycle: cycle,
         grade_value: scoresObj,
-        teacher_remarks: remarks,
-        teacher_email: teacherEmail
+        teacher_remarks: remarks
       };
       
       const { data: existingData } = await supabase
@@ -254,7 +253,7 @@ export default function SubjectEvaluationPage() {
         .eq('student_id', selectedStudent.id)
         .eq('subject', subjectName)
         .eq('reporting_cycle', cycle)
-        .single();
+        .maybeSingle();
         
       let error;
       if (existingData) {
