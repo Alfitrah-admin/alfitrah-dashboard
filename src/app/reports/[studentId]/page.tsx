@@ -47,6 +47,7 @@ export default function StudentReportCard() {
                 subject: e.subject,
                 grades: parsedGrades || {},
                 comments: e.teacher_remarks || e.comments || '',
+                studentName: dbStudent.name,
                 reportingCycle: e.reporting_cycle,
               };
             }));

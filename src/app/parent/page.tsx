@@ -75,7 +75,7 @@ export default function ParentDashboard() {
             grades: parsedGrades || {},
             comments: e.teacher_remarks || e.comments || '',
             studentId: e.student_id,
-            studentName: e.student_name,
+            studentName: student.name,
             reportingCycle: e.reporting_cycle,
           };
         }) as any[]);

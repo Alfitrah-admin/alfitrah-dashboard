@@ -27,7 +27,7 @@ export default function ParentReportsPage() {
             grades: parsedGrades || {},
             comments: e.teacher_remarks || e.comments || '',
             studentId: e.student_id,
-            studentName: e.student_name,
+            studentName: student.name,
             reportingCycle: e.reporting_cycle || 'Term 1',
           };
         }));
